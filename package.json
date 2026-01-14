@@ -1,0 +1,29 @@
+{
+  "name": "greendotball-form-bot",
+  "version": "1.0.0",
+  "description": "Automated bot to submit forms on greendotball.com with image upload and slide-to-submit interaction",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "debug": "node src/bot.js --debug",
+    "batch": "node src/bot.js --batch",
+    "test": "node test/test-bot.js"
+  },
+  "keywords": [
+    "bot",
+    "form",
+    "automation",
+    "puppeteer",
+    "submission"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^21.0.0",
+    "winston": "^3.11.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

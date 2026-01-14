@@ -1,0 +1,45 @@
+{
+  "targetUrl": "https://greendotball.com/?utm_source=herody&utm_medium=29",
+  "headless": false,
+  "slowMo": 100,
+  "timeout": 30000,
+  "retryAttempts": 3,
+  "delayBetweenSubmissions": 3000,
+  "randomSelection": true,
+  "phoneNumbers": [
+    "9911329839",
+    "8368210629",
+    "9708064895",
+    "9891440932",
+    "9031506724",
+    "9310147725",
+    "9582142584",
+    "8700713861"
+  ],
+  "images": [
+    "./data/sample-images/img-1.png",
+    "./data/sample-images/img-2.png",
+    "./data/sample-images/img-3.png",
+    "./data/sample-images/img-4.jpg",
+    "./data/sample-images/img-5.jpg",
+    "./data/sample-images/img-6.jpg",
+    "./data/sample-images/img-7.jpg",
+    "./data/sample-images/img-8.jpg",
+    "./data/sample-images/img-9.jpg",
+    "./data/sample-images/img-10.jpg",
+    "./data/sample-images/img-11.jpg",
+    "./data/sample-images/img-12.jpg",
+    "./data/sample-images/img-13.jpg",
+    "./data/sample-images/img-14.jpg",
+    "./data/sample-images/img-15.jpg"
+  ],
+  "imagePath": "./data/sample-images/img-1.png",
+  "utmParams": {
+    "utm_source": "bot",
+    "utm_medium": "automation",
+    "utm_campaign": "test"
+  },
+  "slideStrategy": "mouse",
+  "screenshotOnError": true,
+  "maxSubmissionsPerSession": 10
+}

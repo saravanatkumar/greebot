@@ -1,0 +1,8 @@
+node_modules/
+logs/*.log
+data/phone-numbers.json
+.env
+*.png
+*.jpg
+*.jpeg
+.DS_Store
