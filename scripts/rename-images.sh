@@ -24,8 +24,13 @@ for file in *; do
     # Get file extension
     ext="${file##*.}"
     
-    # Generate random name (12 characters)
-    random_name=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 12 | head -n 1)
+    # Generate random name (12 characters) - macOS compatible
+    random_name=$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 12)
+    
+    # Fallback if random_name is empty
+    if [ -z "$random_name" ]; then
+      random_name=$(openssl rand -hex 6)
+    fi
     
     # Rename file
     mv "$file" "${random_name}.${ext}"
