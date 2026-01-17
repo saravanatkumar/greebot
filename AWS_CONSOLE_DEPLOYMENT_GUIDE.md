@@ -225,15 +225,15 @@ sudo dnf install -y chromium liberation-fonts nss atk cups-libs gtk3 \
   libXcomposite libXcursor libXdamage libXext libXi libXrandr \
   libXScrnSaver libXtst pango xdg-utils alsa-lib
 
-# Verify Chromium
-chromium-browser --version
+# Verify Chrome
+google-chrome --version
 
 # Install Git
 sudo dnf install -y git
 
 # Set environment variables
 echo 'export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true' >> ~/.bashrc
-echo 'export PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser' >> ~/.bashrc
+echo 'export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome' >> ~/.bashrc
 source ~/.bashrc
 ```
 
@@ -313,7 +313,7 @@ nano config/config.json
 ```bash
 cd /opt/greendotball-bot
 export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-export PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
 npm run batch
 ```
 
@@ -339,7 +339,7 @@ sudo nano /opt/greendotball-bot/run-bot.sh
 ```bash
 #!/bin/bash
 export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-export PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
 export HOME=/home/ec2-user
 export NODE_ENV=production
 
@@ -375,6 +375,11 @@ aws s3 cp $LOG_FILE "s3://greendotball-bot-data/logs/$INSTANCE_ID/$TIMESTAMP.log
 aws s3 cp /opt/greendotball-bot/logs/ "s3://greendotball-bot-data/logs/$INSTANCE_ID/" --recursive 2>&1 | tee -a $LOG_FILE
 
 echo "Script completed at $(date)" | tee -a $LOG_FILE
+
+# Auto-shutdown instance after completion
+echo "Shutting down instance in 60 seconds..." | tee -a $LOG_FILE
+sleep 60
+sudo shutdown -h now
 ```
 
 **Save and exit:**
@@ -409,7 +414,7 @@ Type=oneshot
 User=ec2-user
 WorkingDirectory=/opt/greendotball-bot
 Environment="PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true"
-Environment="PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser"
+Environment="PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome"
 Environment="HOME=/home/ec2-user"
 ExecStart=/opt/greendotball-bot/run-bot.sh
 StandardOutput=journal
