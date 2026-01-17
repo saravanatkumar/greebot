@@ -33,26 +33,26 @@ class DynamicConfig {
     }
   }
 
-  static async loadImageBatch(batchNumber) {
+  static async loadAllImages() {
     try {
-      const batchDir = path.join(__dirname, `../data/image-batches/batch-${batchNumber.toString().padStart(3, '0')}`);
+      const imagesDir = path.join(__dirname, '../data/images');
       
-      if (!fs.existsSync(batchDir)) {
-        throw new Error(`Batch directory not found: ${batchDir}`);
+      if (!fs.existsSync(imagesDir)) {
+        throw new Error(`Images directory not found: ${imagesDir}`);
       }
       
-      const images = fs.readdirSync(batchDir)
+      const images = fs.readdirSync(imagesDir)
         .filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
-        .map(file => path.join(batchDir, file));
+        .map(file => path.join(imagesDir, file));
       
       if (images.length === 0) {
-        throw new Error(`No images found in batch ${batchNumber}`);
+        throw new Error('No images found in images directory');
       }
       
-      logger.info(`Loaded ${images.length} images from batch ${batchNumber}`);
+      logger.info(`Loaded ${images.length} images from images directory`);
       return images;
     } catch (error) {
-      logger.error('Failed to load image batch:', error.message);
+      logger.error('Failed to load images:', error.message);
       throw error;
     }
   }

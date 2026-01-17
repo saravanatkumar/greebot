@@ -50,19 +50,20 @@ mkdir -p ./data/image-batches
 if [ -n "$MOBILE_INDEX" ]; then
   # Dynamic assignment mode
   echo "🎯 DYNAMIC ASSIGNMENT MODE" | tee -a $LOG_FILE
+  echo "Mobile Index: $MOBILE_INDEX" | tee -a $LOG_FILE
   
   # Download mobile numbers list
   echo "Downloading mobile numbers..." | tee -a $LOG_FILE
   aws s3 cp s3://greendotball-bot-data/config/mobile-numbers.txt ./data/mobile-numbers.txt 2>&1 | tee -a $LOG_FILE
   
-  # Download assigned image batch
-  BATCH_NUM=$(printf "%03d" $MOBILE_INDEX)
-  echo "Downloading image batch $BATCH_NUM..." | tee -a $LOG_FILE
-  aws s3 sync s3://greendotball-bot-data/images/batches/batch-$BATCH_NUM/ ./data/image-batches/batch-$BATCH_NUM/ 2>&1 | tee -a $LOG_FILE
+  # Download ALL images (same for all instances)
+  echo "Downloading all images..." | tee -a $LOG_FILE
+  mkdir -p ./data/images
+  aws s3 sync s3://greendotball-bot-data/images/ ./data/images/ 2>&1 | tee -a $LOG_FILE
   
   # Rename images to random names for anonymity
   echo "Renaming images to random names..." | tee -a $LOG_FILE
-  cd ./data/image-batches/batch-$BATCH_NUM/
+  cd ./data/images/
   for file in *; do
     if [ -f "$file" ]; then
       # Get file extension
@@ -76,13 +77,15 @@ if [ -n "$MOBILE_INDEX" ]; then
   done
   cd /opt/greendotball-bot
   
-  IMAGE_COUNT=$(ls ./data/image-batches/batch-$BATCH_NUM/ 2>/dev/null | wc -l)
+  IMAGE_COUNT=$(ls ./data/images/ 2>/dev/null | wc -l)
   echo "Downloaded and renamed $IMAGE_COUNT images" | tee -a $LOG_FILE
   
   if [ "$IMAGE_COUNT" -eq 0 ]; then
-    echo "ERROR: No images found in batch $BATCH_NUM" | tee -a $LOG_FILE
+    echo "ERROR: No images found" | tee -a $LOG_FILE
     exit 1
   fi
+  
+  echo "This instance will process: 1 mobile × $IMAGE_COUNT images = $IMAGE_COUNT submissions" | tee -a $LOG_FILE
 else
   # Legacy mode - download all images and use config.json
   echo "📋 LEGACY MODE - Using config.json" | tee -a $LOG_FILE

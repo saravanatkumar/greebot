@@ -200,15 +200,15 @@ class GreenDotBallBot {
         // Load assigned mobile number
         phoneNumber = await DynamicConfig.loadMobileNumber(mobileIndex);
         
-        // Load assigned image batch
-        imagePaths = await DynamicConfig.loadImageBatch(mobileIndex);
+        // Load ALL images (same images for all instances)
+        imagePaths = await DynamicConfig.loadAllImages();
         
-        // Process all images in the batch
+        // Process all images with this mobile number
         maxSubmissions = imagePaths.length;
         
         logger.info(`Assigned Mobile: ${maskPhoneNumber(phoneNumber)}`);
-        logger.info(`Assigned Images: ${imagePaths.length}`);
-        logger.info(`Total Submissions: ${maxSubmissions}`);
+        logger.info(`Total Images: ${imagePaths.length}`);
+        logger.info(`Total Submissions: ${maxSubmissions} (1 mobile × ${imagePaths.length} images)`);
       } else {
         // Legacy mode - use config.json
         logger.info(`📋 LEGACY MODE - Using config.json`);
