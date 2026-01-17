@@ -60,8 +60,24 @@ if [ -n "$MOBILE_INDEX" ]; then
   echo "Downloading image batch $BATCH_NUM..." | tee -a $LOG_FILE
   aws s3 sync s3://greendotball-bot-data/images/batches/batch-$BATCH_NUM/ ./data/image-batches/batch-$BATCH_NUM/ 2>&1 | tee -a $LOG_FILE
   
+  # Rename images to random names for anonymity
+  echo "Renaming images to random names..." | tee -a $LOG_FILE
+  cd ./data/image-batches/batch-$BATCH_NUM/
+  for file in *; do
+    if [ -f "$file" ]; then
+      # Get file extension
+      ext="${file##*.}"
+      # Generate random name (12 characters)
+      random_name=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 12 | head -n 1)
+      # Rename file
+      mv "$file" "${random_name}.${ext}"
+      echo "  Renamed: $file -> ${random_name}.${ext}" | tee -a $LOG_FILE
+    fi
+  done
+  cd /opt/greendotball-bot
+  
   IMAGE_COUNT=$(ls ./data/image-batches/batch-$BATCH_NUM/ 2>/dev/null | wc -l)
-  echo "Downloaded $IMAGE_COUNT images" | tee -a $LOG_FILE
+  echo "Downloaded and renamed $IMAGE_COUNT images" | tee -a $LOG_FILE
   
   if [ "$IMAGE_COUNT" -eq 0 ]; then
     echo "ERROR: No images found in batch $BATCH_NUM" | tee -a $LOG_FILE
