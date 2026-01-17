@@ -254,15 +254,22 @@ class GreenDotBallBot {
           phoneNumber: maskPhoneNumber(phoneNumber),
           image: path.basename(imagePath),
           success: result.success,
+          message: result.message ? result.message.replace(/<[^>]*>/g, '').trim() : '',
           timestamp: new Date().toISOString(),
           mobileIndex: mobileIndex || null
         });
 
-        // Log individual result to console
+        // Log individual result to console with server response
         if (result.success) {
           console.log(`\n✅ SUCCESS #${submissionNum}: Phone ${maskPhoneNumber(phoneNumber)} | Image: ${path.basename(imagePath)}`);
+          if (result.message) {
+            console.log(`   Server Response: ${result.message.replace(/<[^>]*>/g, '').trim()}`);
+          }
         } else {
           console.log(`\n❌ FAILED #${submissionNum}: Phone ${maskPhoneNumber(phoneNumber)} | Image: ${path.basename(imagePath)}`);
+          if (result.message) {
+            console.log(`   Server Response: ${result.message.replace(/<[^>]*>/g, '').trim()}`);
+          }
         }
 
         if (i < maxSubmissions - 1 && i < imagePaths.length - 1) {
@@ -302,6 +309,9 @@ class GreenDotBallBot {
       results.forEach((r, idx) => {
         const status = r.success ? '✅ SUCCESS' : '❌ FAILED';
         console.log(`${idx + 1}. ${status} | Phone: ${r.phoneNumber} | Image: ${r.image} | Time: ${new Date(r.timestamp).toLocaleTimeString()}`);
+        if (r.message) {
+          console.log(`   Response: ${r.message}`);
+        }
       });
       console.log('='.repeat(60));
 
