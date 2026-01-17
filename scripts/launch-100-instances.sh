@@ -3,14 +3,28 @@
 # Configuration
 TEMPLATE_NAME="greendotball-bot-template"
 REGION="ap-south-1"
-TOTAL_INSTANCES=100
+MOBILE_FILE="data/mobile-numbers.txt"
 
-echo "=========================================="
-echo "Launching $TOTAL_INSTANCES instances with unique mobile assignments"
-echo "Template: $TEMPLATE_NAME"
-echo "Region: $REGION"
-echo "=========================================="
-echo ""
+# Auto-detect number of instances based on mobile numbers
+if [ -f "$MOBILE_FILE" ]; then
+  TOTAL_INSTANCES=$(grep -v '^$' "$MOBILE_FILE" | wc -l | tr -d ' ')
+  echo "=========================================="
+  echo "Auto-detected $TOTAL_INSTANCES mobile numbers from $MOBILE_FILE"
+  echo "Will launch $TOTAL_INSTANCES instances (1 per mobile number)"
+  echo "Template: $TEMPLATE_NAME"
+  echo "Region: $REGION"
+  echo "=========================================="
+  echo ""
+else
+  echo "ERROR: Mobile numbers file not found: $MOBILE_FILE"
+  echo "Please create the file with one mobile number per line."
+  exit 1
+fi
+
+if [ "$TOTAL_INSTANCES" -eq 0 ]; then
+  echo "ERROR: No mobile numbers found in $MOBILE_FILE"
+  exit 1
+fi
 
 # Check if template exists
 echo "Checking if launch template exists..."

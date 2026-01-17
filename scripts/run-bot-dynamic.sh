@@ -13,10 +13,20 @@ LOG_FILE="$LOG_DIR/bot_$TIMESTAMP.log"
 sudo mkdir -p $LOG_DIR
 sudo chown ec2-user:ec2-user $LOG_DIR
 
+# Start 45-minute failsafe timer in background
+# If script doesn't complete in 45 minutes, force shutdown
+(
+  sleep 2700  # 45 minutes = 2700 seconds
+  echo "⚠️  FAILSAFE: 45-minute timeout reached - forcing shutdown" | tee -a $LOG_FILE
+  sudo shutdown -h now
+) &
+FAILSAFE_PID=$!
+
 echo "========================================" | tee -a $LOG_FILE
 echo "Bot started at $(date)" | tee -a $LOG_FILE
 INSTANCE_ID=$(ec2-metadata --instance-id | cut -d ' ' -f 2)
 echo "Instance ID: $INSTANCE_ID" | tee -a $LOG_FILE
+echo "Failsafe timer: Will auto-terminate in 45 minutes" | tee -a $LOG_FILE
 
 # Get MOBILE_INDEX from EC2 user-data
 echo "Fetching mobile index from user-data..." | tee -a $LOG_FILE
@@ -80,6 +90,10 @@ fi
 
 EXIT_CODE=$?
 echo "Bot finished with exit code: $EXIT_CODE" | tee -a $LOG_FILE
+
+# Cancel failsafe timer since bot completed
+kill $FAILSAFE_PID 2>/dev/null || true
+echo "✓ Failsafe timer cancelled - bot completed successfully" | tee -a $LOG_FILE
 
 # Upload logs to S3
 echo "Uploading logs to S3..." | tee -a $LOG_FILE
