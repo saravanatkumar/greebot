@@ -12,13 +12,13 @@ MOBILE_FILE="data/mobile-numbers.txt"
 # Auto-detect number of instances based on mobile numbers
 if [ -f "$MOBILE_FILE" ]; then
   TOTAL_INSTANCES=$(grep -v '^$' "$MOBILE_FILE" | wc -l | tr -d ' ')
-  echo "=========================================="
+  echo "==========================================="
   echo "Auto-detected $TOTAL_INSTANCES mobile numbers from $MOBILE_FILE"
   echo "Will launch $TOTAL_INSTANCES instances (1 per mobile number)"
   echo "AMI: $AMI_ID"
   echo "Instance Type: $INSTANCE_TYPE"
   echo "Region: $REGION"
-  echo "=========================================="
+  echo "==========================================="
   echo ""
 else
   echo "ERROR: Mobile numbers file not found: $MOBILE_FILE"
