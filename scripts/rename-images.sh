@@ -3,7 +3,7 @@
 # Script to rename all images in image-batches to random names
 # Usage: ./rename-images.sh [batch-directory]
 
-BATCH_DIR="${1:-/opt/greendotball-bot/data/image-batches}"
+BATCH_DIR="${1:-/opt/greendotball-bot/data/images}"
 
 if [ ! -d "$BATCH_DIR" ]; then
   echo "ERROR: Directory not found: $BATCH_DIR"
