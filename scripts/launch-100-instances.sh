@@ -1,7 +1,11 @@
 #!/bin/bash
 
 # Configuration
-TEMPLATE_NAME="greendotball-bot-template"
+AMI_ID="ami-0a68c02d0dbfdf3dd"  # greendotball-bot-dynamic-v1
+INSTANCE_TYPE="t3.small"
+KEY_NAME="greendotball-bot-key-v2"
+SECURITY_GROUP_NAME="greendotball-bot-sg"
+IAM_ROLE="EC2-GreenDotBall-S3-Access"
 REGION="ap-south-1"
 MOBILE_FILE="data/mobile-numbers.txt"
 
@@ -11,7 +15,8 @@ if [ -f "$MOBILE_FILE" ]; then
   echo "=========================================="
   echo "Auto-detected $TOTAL_INSTANCES mobile numbers from $MOBILE_FILE"
   echo "Will launch $TOTAL_INSTANCES instances (1 per mobile number)"
-  echo "Template: $TEMPLATE_NAME"
+  echo "AMI: $AMI_ID"
+  echo "Instance Type: $INSTANCE_TYPE"
   echo "Region: $REGION"
   echo "=========================================="
   echo ""
@@ -26,20 +31,20 @@ if [ "$TOTAL_INSTANCES" -eq 0 ]; then
   exit 1
 fi
 
-# Check if template exists
-echo "Checking if launch template exists..."
-aws ec2 describe-launch-templates \
+# Get security group ID
+echo "Getting security group ID..."
+SECURITY_GROUP_ID=$(aws ec2 describe-security-groups \
   --region $REGION \
-  --launch-template-names $TEMPLATE_NAME \
-  > /dev/null 2>&1
+  --filters "Name=group-name,Values=$SECURITY_GROUP_NAME" \
+  --query 'SecurityGroups[0].GroupId' \
+  --output text)
 
-if [ $? -ne 0 ]; then
-  echo "ERROR: Launch template '$TEMPLATE_NAME' not found in region $REGION"
-  echo "Please create the launch template first."
+if [ -z "$SECURITY_GROUP_ID" ] || [ "$SECURITY_GROUP_ID" == "None" ]; then
+  echo "ERROR: Security group '$SECURITY_GROUP_NAME' not found"
   exit 1
 fi
 
-echo "✓ Launch template found"
+echo "✓ Security Group: $SECURITY_GROUP_ID"
 echo ""
 
 # Confirm with user
@@ -67,8 +72,13 @@ MOBILE_INDEX=$i" | base64)
   # Launch instance
   RESULT=$(aws ec2 run-instances \
     --region $REGION \
-    --launch-template LaunchTemplateName=$TEMPLATE_NAME \
-    --user-data "$USER_DATA" \
+    --image-id $AMI_ID \
+    --instance-type $INSTANCE_TYPE \
+    --key-name $KEY_NAME \
+    --security-group-ids $SECURITY_GROUP_ID \
+    --iam-instance-profile Name=$IAM_ROLE \
+    --user-data "#!/bin/bash
+MOBILE_INDEX=$i" \
     --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=greendotball-worker-$i},{Key=MobileIndex,Value=$i},{Key=Project,Value=greendotball},{Key=Batch,Value=$(date +%Y%m%d-%H%M%S)}]" \
     --count 1 \
     2>&1)
