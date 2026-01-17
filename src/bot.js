@@ -185,36 +185,64 @@ class GreenDotBallBot {
 
   async runBatch() {
     try {
-      const phoneNumbers = this.config.phoneNumbers;
-      const images = this.config.images || [this.config.imagePath];
-      const randomSelection = this.config.randomSelection || false;
-      const maxSubmissions = this.config.maxSubmissionsPerSession || 10;
-
-      logger.info(`Starting batch mode with ${phoneNumbers.length} phone numbers`);
-      logger.info(`Available images: ${images.length}`);
-      logger.info(`Random selection: ${randomSelection ? 'ENABLED' : 'DISABLED'}`);
-      logger.info(`Max submissions per session: ${maxSubmissions}`);
+      logger.info('Starting batch submission mode...');
+      
+      // Check if dynamic assignment is enabled
+      const mobileIndex = global.MOBILE_INDEX;
+      let phoneNumber, imagePaths, maxSubmissions;
+      
+      if (mobileIndex) {
+        // Dynamic assignment mode
+        logger.info(`🎯 DYNAMIC ASSIGNMENT MODE - Mobile Index: ${mobileIndex}`);
+        
+        const DynamicConfig = require('./dynamicConfig');
+        
+        // Load assigned mobile number
+        phoneNumber = await DynamicConfig.loadMobileNumber(mobileIndex);
+        
+        // Load assigned image batch
+        imagePaths = await DynamicConfig.loadImageBatch(mobileIndex);
+        
+        // Process all images in the batch
+        maxSubmissions = imagePaths.length;
+        
+        logger.info(`Assigned Mobile: ${maskPhoneNumber(phoneNumber)}`);
+        logger.info(`Assigned Images: ${imagePaths.length}`);
+        logger.info(`Total Submissions: ${maxSubmissions}`);
+      } else {
+        // Legacy mode - use config.json
+        logger.info(`📋 LEGACY MODE - Using config.json`);
+        
+        const phoneNumbers = this.config.phoneNumbers;
+        const images = this.config.images || [this.config.imagePath];
+        const randomSelection = this.config.randomSelection || false;
+        maxSubmissions = this.config.maxSubmissionsPerSession || 10;
+        
+        // For legacy mode, we'll use the old logic
+        phoneNumber = randomSelection ? getRandomItem(phoneNumbers) : phoneNumbers[0];
+        imagePaths = images;
+        
+        logger.info(`Phone numbers available: ${phoneNumbers.length}`);
+        logger.info(`Images available: ${images.length}`);
+        logger.info(`Random selection: ${randomSelection ? 'ENABLED' : 'DISABLED'}`);
+        logger.info(`Max submissions: ${maxSubmissions}`);
+      }
 
       const results = [];
 
-      for (let i = 0; i < phoneNumbers.length && i < maxSubmissions; i++) {
-        let phoneNumber, imagePath;
+      // Process submissions
+      for (let i = 0; i < maxSubmissions && i < imagePaths.length; i++) {
+        const submissionNum = i + 1;
+        const imagePath = path.resolve(imagePaths[i]);
         
-        if (randomSelection) {
-          phoneNumber = getRandomItem(phoneNumbers);
-          imagePath = path.resolve(getRandomItem(images));
-          logger.info(`\n${'='.repeat(60)}`);
-          logger.info(`Processing ${i + 1}/${Math.min(phoneNumbers.length, maxSubmissions)} - RANDOM SELECTION`);
-          logger.info(`Selected Phone: ${maskPhoneNumber(phoneNumber)}`);
-          logger.info(`Selected Image: ${path.basename(imagePath)}`);
-          logger.info(`${'='.repeat(60)}\n`);
-        } else {
-          phoneNumber = phoneNumbers[i];
-          imagePath = path.resolve(images[i % images.length]);
-          logger.info(`\n${'='.repeat(60)}`);
-          logger.info(`Processing ${i + 1}/${Math.min(phoneNumbers.length, maxSubmissions)}`);
-          logger.info(`${'='.repeat(60)}\n`);
+        logger.info(`\n${'='.repeat(60)}`);
+        logger.info(`📤 SUBMISSION ${submissionNum}/${maxSubmissions}`);
+        logger.info(`Phone: ${maskPhoneNumber(phoneNumber)}`);
+        logger.info(`Image: ${path.basename(imagePath)}`);
+        if (mobileIndex) {
+          logger.info(`Mobile Index: ${mobileIndex}`);
         }
+        logger.info(`${'='.repeat(60)}\n`);
 
         const result = await this.submitWithRetry(
           phoneNumber, 
@@ -226,17 +254,18 @@ class GreenDotBallBot {
           phoneNumber: maskPhoneNumber(phoneNumber),
           image: path.basename(imagePath),
           success: result.success,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          mobileIndex: mobileIndex || null
         });
 
         // Log individual result to console
         if (result.success) {
-          console.log(`\n✅ SUCCESS #${i + 1}: Phone ${maskPhoneNumber(phoneNumber)} | Image: ${path.basename(imagePath)}`);
+          console.log(`\n✅ SUCCESS #${submissionNum}: Phone ${maskPhoneNumber(phoneNumber)} | Image: ${path.basename(imagePath)}`);
         } else {
-          console.log(`\n❌ FAILED #${i + 1}: Phone ${maskPhoneNumber(phoneNumber)} | Image: ${path.basename(imagePath)}`);
+          console.log(`\n❌ FAILED #${submissionNum}: Phone ${maskPhoneNumber(phoneNumber)} | Image: ${path.basename(imagePath)}`);
         }
 
-        if (i < phoneNumbers.length - 1 && i < maxSubmissions - 1) {
+        if (i < maxSubmissions - 1 && i < imagePaths.length - 1) {
           const delay = this.config.delayBetweenSubmissions || 5000;
           logger.info(`Waiting ${delay / 1000} seconds before next submission...`);
           await sleep(delay);
@@ -249,6 +278,10 @@ class GreenDotBallBot {
       logger.info(`Total submissions: ${results.length}`);
       logger.info(`Successful: ${results.filter(r => r.success).length}`);
       logger.info(`Failed: ${results.filter(r => !r.success).length}`);
+      if (mobileIndex) {
+        logger.info(`Mobile Index: ${mobileIndex}`);
+        logger.info(`Mobile Number: ${maskPhoneNumber(phoneNumber)}`);
+      }
       logger.info('='.repeat(60));
       
       // Console summary
@@ -258,6 +291,10 @@ class GreenDotBallBot {
       console.log(`Total submissions: ${results.length}`);
       console.log(`✅ Successful: ${results.filter(r => r.success).length}`);
       console.log(`❌ Failed: ${results.filter(r => !r.success).length}`);
+      if (mobileIndex) {
+        console.log(`🏷️  Mobile Index: ${mobileIndex}`);
+        console.log(`📱 Mobile Number: ${maskPhoneNumber(phoneNumber)}`);
+      }
       console.log('='.repeat(60));
       
       // Detailed results
@@ -337,6 +374,19 @@ async function main() {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
     const args = process.argv.slice(2);
+    
+    // Parse mobile index argument
+    let mobileIndex = null;
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === '--mobile-index' && args[i + 1]) {
+        mobileIndex = parseInt(args[i + 1]);
+        logger.info(`Mobile index argument detected: ${mobileIndex}`);
+      }
+    }
+    
+    // Store mobile index globally for use in bot
+    global.MOBILE_INDEX = mobileIndex;
+    
     if (args.includes('--debug')) {
       config.headless = false;
       config.slowMo = 100;
