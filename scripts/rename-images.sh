@@ -3,7 +3,7 @@
 # Script to rename all images to random names
 # Usage: ./rename-images.sh [images-directory]
 
-IMAGES_DIR="${1:-/opt/greendotball-bot/data/images}"
+IMAGES_DIR="${1:-/Users/apple/CascadeProjects/windsurf-project-2/data/images}"
 
 if [ ! -d "$IMAGES_DIR" ]; then
   echo "ERROR: Directory not found: $IMAGES_DIR"
