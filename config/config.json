@@ -3,7 +3,7 @@
   "headless": true,
   "slowMo": 100,
   "timeout": 30000,
-  "retryAttempts": 3,
+  "retryAttempts": 1,
   "delayBetweenSubmissions": 3000,
   "randomSelection": true,
   "phoneNumbers": [
