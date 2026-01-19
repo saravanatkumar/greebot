@@ -50,11 +50,18 @@ class FormHandler {
       logger.info(`Entering phone number: ${phoneNumber.substring(0, 5)}*****`);
       
       await this.page.waitForSelector(SELECTORS.phoneInput, { timeout: 5000 });
+      await sleep(1000);
       await this.page.click(SELECTORS.phoneInput);
-      await sleep(200);
+      await sleep(500);
       
-      await this.page.type(SELECTORS.phoneInput, phoneNumber, { delay: 50 });
-      await sleep(await humanDelay());
+      await this.page.evaluate((selector) => {
+        const input = document.querySelector(selector);
+        if (input) input.value = '';
+      }, SELECTORS.phoneInput);
+      await sleep(300);
+      
+      await this.page.type(SELECTORS.phoneInput, phoneNumber, { delay: 100 });
+      await sleep(1000);
 
       const enteredValue = await this.page.$eval(SELECTORS.phoneInput, el => el.value);
       if (enteredValue !== phoneNumber) {
@@ -207,10 +214,10 @@ class FormHandler {
       logger.info('Waiting for submission response...');
       
       await this.page.waitForSelector(SELECTORS.successModal, { 
-        timeout: this.config.timeout || 30000 
+        timeout: 60000
       });
 
-      await sleep(1000);
+      await sleep(2000);
 
       const modalTitle = await this.page.$eval(SELECTORS.modalTitle, el => el.textContent);
       const modalMessage = await this.page.$eval(SELECTORS.modalMessage, el => el.innerHTML);
