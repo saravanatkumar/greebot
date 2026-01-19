@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-AMI_ID="ami-078e1c49f563afde5"
+AMI_ID="ami-010652472c37554bc"
 INSTANCE_TYPE="t3.small"
 KEY_NAME="greendotball-bot-key-v2"
 SECURITY_GROUP_NAME="greendotball-bot-sg"

@@ -16,8 +16,8 @@ sudo chown ec2-user:ec2-user $LOG_DIR
 # Start 45-minute failsafe timer in background
 # If script doesn't complete in 45 minutes, force shutdown
 (
-  sleep 2700  # 45 minutes = 2700 seconds
-  echo "⚠️  FAILSAFE: 45-minute timeout reached - forcing shutdown" | tee -a $LOG_FILE
+  sleep 3300  # 45 minutes = 2700 seconds
+  echo "⚠️  FAILSAFE: 55-minute timeout reached - forcing shutdown" | tee -a $LOG_FILE
   sudo shutdown -h now
 ) &
 FAILSAFE_PID=$!
