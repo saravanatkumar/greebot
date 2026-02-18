@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - GreenDotBall</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #f5f5f5;
+    }
+    .main-container {
+      max-width: 1200px;
+      margin: 50px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .card {
+      margin-bottom: 20px;
+      border: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .header-logo {
+      width: 40px;
+      height: 40px;
+      margin-right: 10px;
+      background-color: #28a745;
+      border-radius: 50%;
+    }
+    .stat-card {
+      text-align: center;
+      padding: 15px;
+    }
+    .stat-value {
+      font-size: 36px;
+      font-weight: bold;
+    }
+    .success .stat-value {
+      color: #28a745;
+    }
+    .warning .stat-value {
+      color: #ffc107;
+    }
+    .danger .stat-value {
+      color: #dc3545;
+    }
+    .stat-label {
+      font-size: 14px;
+      color: #6c757d;
+    }
+    .chart-container {
+      position: relative;
+      height: 250px;
+      width: 100%;
+    }
+    .log-container {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .log-entry {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .log-time {
+      color: #6c757d;
+    }
+    .log-success {
+      color: #28a745;
+    }
+    .log-error {
+      color: #dc3545;
+    }
+    .phone-filter {
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .phone-check {
+      margin-bottom: 5px;
+    }
+    .instance-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .refresh-btn {
+      cursor: pointer;
+    }
+    .auto-refresh {
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid main-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="d-flex align-items-center">
+        <div class="header-logo"></div>
+        <h2 class="mb-0">Campaign Dashboard</h2>
+      </div>
+      <div>
+        <span class="badge bg-primary me-2" id="campaignId"></span>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm me-2">
+          <i class="bi bi-house"></i> Home
+        </a>
+        <button class="btn btn-outline-secondary btn-sm" id="logoutBtn">
+          <i class="bi bi-box-arrow-right"></i> Logout
+        </button>
+      </div>
+    </div>
+
+    <!-- Authentication Check -->
+    <div class="alert alert-danger d-none" id="authAlert">
+      Please <a href="index.html">login</a> to access this page.
+    </div>
+    
+    <!-- Main Content (shown when authenticated) -->
+    <div id="mainContent" class="d-none">
+      <!-- Campaign Selector -->
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <div class="input-group">
+            <label class="input-group-text" for="campaignSelect">Campaign</label>
+            <select class="form-select" id="campaignSelect">
+              <option value="">-- Select a campaign --</option>
+              <!-- Will be populated by JavaScript -->
+            </select>
+          </div>
+        </div>
+        <div class="col-md-6 text-end">
+          <div class="btn-group">
+            <button type="button" class="btn btn-outline-secondary" id="refreshBtn">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+              <span id="refreshInterval">30s</span>
+            </button>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item refresh-option" data-interval="0">Manual</a></li>
+              <li><a class="dropdown-item refresh-option" data-interval="10">10s</a></li>
+              <li><a class="dropdown-item refresh-option" data-interval="30">30s</a></li>
+              <li><a class="dropdown-item refresh-option" data-interval="60">1m</a></li>
+              <li><a class="dropdown-item refresh-option" data-interval="300">5m</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="row">
+        <div class="col-xl-3 col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <div class="stat-card success">
+                <div class="stat-value" id="totalSubmissions">0</div>
+                <div class="stat-label">Total Submissions</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <div class="stat-card success">
+                <div class="stat-value" id="successCount">0</div>
+                <div class="stat-label">Successful</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <div class="stat-card warning">
+                <div class="stat-value" id="pendingCount">0</div>
+                <div class="stat-label">Pending</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <div class="stat-card danger">
+                <div class="stat-value" id="failureCount">0</div>
+                <div class="stat-label">Failed</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="row">
+        <div class="col-md-8">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">Submission Progress</h5>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="progressChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">Success Rate</h5>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="successChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logs and Instances Row -->
+      <div class="row">
+        <div class="col-md-8">
+          <div class="card">
+            <div class="card-header">
+              <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Submission Logs</h5>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="autoScrollSwitch" checked>
+                  <label class="form-check-label" for="autoScrollSwitch">Auto-scroll</label>
+                </div>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="log-container" id="logContainer">
+                <!-- Will be populated by JavaScript -->
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">Instances</h5>
+            </div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label class="form-label">Filter by Phone Number</label>
+                <div class="phone-filter" id="phoneFilter">
+                  <!-- Will be populated by JavaScript -->
+                </div>
+              </div>
+              <div class="instance-list" id="instanceList">
+                <!-- Will be populated by JavaScript -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Management Actions -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5 class="mb-0">Management Actions</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <button class="btn btn-warning btn-lg w-100" id="stopBtn">
+                <i class="bi bi-pause-circle"></i> Stop All Instances
+              </button>
+            </div>
+            <div class="col-md-4">
+              <button class="btn btn-danger btn-lg w-100" id="terminateBtn">
+                <i class="bi bi-x-circle"></i> Terminate All Instances
+              </button>
+            </div>
+            <div class="col-md-4">
+              <button class="btn btn-success btn-lg w-100" id="exportBtn">
+                <i class="bi bi-download"></i> Export Results
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmTitle">Confirmation</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="confirmBody">
+          Are you sure you want to proceed?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" id="confirmBtn">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Authentication & Dashboard Logic -->
+  <script>
+    // Authentication check
+    function isAuthenticated() {
+      return sessionStorage.getItem('authenticated') === 'true';
+    }
+
+    function logout() {
+      sessionStorage.removeItem('authenticated');
+      sessionStorage.removeItem('username');
+      window.location.href = 'index.html';
+    }
+
+    // Dashboard state
+    let refreshInterval = 30;
+    let refreshTimer = null;
+    let currentCampaignData = null;
+    let progressChart = null;
+    let successChart = null;
+    let selectedPhones = new Set();
+
+    // Simulated API calls (to be replaced with actual API Gateway calls)
+    async function getCampaigns() {
+      // Simulated API response
+      return [
+        { id: 'feb-campaign-1676654321', name: 'February Campaign 2026' },
+        { id: 'march-promo-1676654987', name: 'March Promotion 2026' }
+      ];
+    }
+
+    function generateMockCampaignData(campaignId) {
+      // This function generates mock data for demonstration
+      // In reality, this would come from your S3 logs
+      
+      const phoneNumbers = [];
+      for (let i = 1; i <= 12; i++) {
+        phoneNumbers.push(`9876543${i.toString().padStart(3, '0')}`);
+      }
+      
+      const instances = [];
+      for (let i = 0; i < phoneNumbers.length; i++) {
+        instances.push({
+          id: `i-${Math.random().toString(36).substr(2, 8)}`,
+          phoneNumber: phoneNumbers[i],
+          status: Math.random() > 0.2 ? 'running' : 'pending',
+          submissions: Math.floor(Math.random() * 20) + 1,
+          success: Math.floor(Math.random() * 15),
+          failures: Math.floor(Math.random() * 5)
+        });
+      }
+      
+      const logs = [];
+      const now = new Date();
+      
+      // Generate some mock logs
+      for (let i = 0; i < 50; i++) {
+        const instanceIndex = Math.floor(Math.random() * instances.length);
+        const logTime = new Date(now - Math.floor(Math.random() * 3600000));
+        const isSuccess = Math.random() > 0.2;
+        
+        logs.push({
+          time: logTime,
+          instance: instances[instanceIndex].id,
+          phone: instances[instanceIndex].phoneNumber,
+          message: isSuccess 
+            ? `✓ Submission successful! Form #${Math.floor(Math.random() * 100)}`
+            : `✗ Submission failed: ${Math.random() > 0.5 ? 'Connection timeout' : 'Form validation error'}`,
+          type: isSuccess ? 'success' : 'error'
+        });
+      }
+      
+      // Sort logs by time
+      logs.sort((a, b) => a.time - b.time);
+      
+      // Calculate totals
+      const totals = {
+        submissions: instances.reduce((sum, instance) => sum + instance.submissions, 0),
+        success: instances.reduce((sum, instance) => sum + instance.success, 0),
+        failures: instances.reduce((sum, instance) => sum + instance.failures, 0),
+        pending: instances.reduce((sum, instance) => sum + (instance.submissions - instance.success - instance.failures), 0)
+      };
+      
+      // Generate time series data for charts
+      const timePoints = [];
+      const submissionSeries = [];
+      const successSeries = [];
+      
+      // Create 24 hourly data points
+      for (let i = 0; i < 24; i++) {
+        const timePoint = new Date(now);
+        timePoint.setHours(timePoint.getHours() - 23 + i);
+        timePoints.push(timePoint.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        
+        // Cumulative values
+        const hourSubmissions = Math.floor(Math.random() * 50) + i * 10;
+        const hourSuccess = Math.floor(hourSubmissions * (0.7 + Math.random() * 0.2));
+        
+        submissionSeries.push(hourSubmissions);
+        successSeries.push(hourSuccess);
+      }
+      
+      return {
+        id: campaignId,
+        instances,
+        logs,
+        totals,
+        charts: {
+          timePoints,
+          submissionSeries,
+          successSeries
+        }
+      };
+    }
+
+    async function getCampaignData(campaignId) {
+      // In reality, this would fetch data from your S3 logs
+      // For demonstration, we'll generate mock data
+      return generateMockCampaignData(campaignId);
+    }
+
+    async function stopInstances(instanceIds) {
+      // Simulated API call
+      console.log('Stopping instances:', instanceIds);
+      return { success: true, message: 'Instances stopping' };
+    }
+
+    async function terminateInstances(instanceIds) {
+      // Simulated API call
+      console.log('Terminating instances:', instanceIds);
+      return { success: true, message: 'Instances terminating' };
+    }
+
+    // Chart initialization
+    function initCharts(data) {
+      // Progress Chart (Line Chart)
+      const progressCtx = document.getElementById('progressChart').getContext('2d');
+      if (progressChart) {
+        progressChart.destroy();
+      }
+      
+      progressChart = new Chart(progressCtx, {
+        type: 'line',
+        data: {
+          labels: data.charts.timePoints,
+          datasets: [
+            {
+              label: 'Total Submissions',
+              data: data.charts.submissionSeries,
+              borderColor: '#28a745',
+              backgroundColor: 'rgba(40, 167, 69, 0.1)',
+              fill: true,
+              tension: 0.4
+            },
+            {
+              label: 'Successful Submissions',
+              data: data.charts.successSeries,
+              borderColor: '#17a2b8',
+              backgroundColor: 'rgba(23, 162, 184, 0.1)',
+              fill: true,
+              tension: 0.4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+      
+      // Success Rate Chart (Doughnut Chart)
+      const successCtx = document.getElementById('successChart').getContext('2d');
+      if (successChart) {
+        successChart.destroy();
+      }
+      
+      successChart = new Chart(successCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Success', 'Pending', 'Failed'],
+          datasets: [{
+            data: [data.totals.success, data.totals.pending, data.totals.failures],
+            backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
+
+    // Update dashboard with campaign data
+    function updateDashboard(data) {
+      // Update stats
+      document.getElementById('totalSubmissions').textContent = data.totals.submissions;
+      document.getElementById('successCount').textContent = data.totals.success;
+      document.getElementById('pendingCount').textContent = data.totals.pending;
+      document.getElementById('failureCount').textContent = data.totals.failures;
+      
+      // Update logs
+      const logContainer = document.getElementById('logContainer');
+      logContainer.innerHTML = '';
+      
+      data.logs.forEach(log => {
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log-entry';
+        
+        const timeStr = log.time.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+        
+        logEntry.innerHTML = `
+          <span class="log-time">[${timeStr}]</span>
+          <span class="me-2">${log.phone}:</span>
+          <span class="${log.type === 'success' ? 'log-success' : 'log-error'}">${log.message}</span>
+        `;
+        
+        logContainer.appendChild(logEntry);
+      });
+      
+      // Auto-scroll to bottom if enabled
+      if (document.getElementById('autoScrollSwitch').checked) {
+        logContainer.scrollTop = logContainer.scrollHeight;
+      }
+      
+      // Update phone filters
+      const phoneFilter = document.getElementById('phoneFilter');
+      phoneFilter.innerHTML = '';
+      
+      const phones = [...new Set(data.instances.map(i => i.phoneNumber))];
+      phones.forEach(phone => {
+        const div = document.createElement('div');
+        div.className = 'phone-check';
+        
+        const checked = selectedPhones.size === 0 || selectedPhones.has(phone);
+        
+        div.innerHTML = `
+          <div class="form-check">
+            <input class="form-check-input phone-checkbox" type="checkbox" value="${phone}" id="phone-${phone}" ${checked ? 'checked' : ''}>
+            <label class="form-check-label" for="phone-${phone}">
+              ${phone}
+            </label>
+          </div>
+        `;
+        
+        phoneFilter.appendChild(div);
+      });
+      
+      // Add event listeners to checkboxes
+      document.querySelectorAll('.phone-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+          if (this.checked) {
+            selectedPhones.add(this.value);
+          } else {
+            selectedPhones.delete(this.value);
+          }
+          updateInstanceList(data);
+        });
+      });
+      
+      // Update instance list
+      updateInstanceList(data);
+      
+      // Initialize charts
+      initCharts(data);
+    }
+    
+    function updateInstanceList(data) {
+      const instanceList = document.getElementById('instanceList');
+      instanceList.innerHTML = '';
+      
+      data.instances.forEach(instance => {
+        if (selectedPhones.size === 0 || selectedPhones.has(instance.phoneNumber)) {
+          const div = document.createElement('div');
+          div.className = 'alert d-flex justify-content-between align-items-center';
+          
+          let statusClass = '';
+          if (instance.status === 'running') {
+            statusClass = 'bg-success';
+          } else if (instance.status === 'pending') {
+            statusClass = 'bg-warning text-dark';
+          } else {
+            statusClass = 'bg-secondary';
+          }
+          
+          div.innerHTML = `
+            <div>
+              <div class="fw-bold">${instance.id}</div>
+              <div class="small">${instance.phoneNumber}</div>
+              <div class="small text-muted">
+                ${instance.submissions} submissions
+                <span class="text-success">(${instance.success} success)</span>
+                <span class="text-danger">(${instance.failures} failed)</span>
+              </div>
+            </div>
+            <span class="badge ${statusClass}">${instance.status}</span>
+          `;
+          
+          instanceList.appendChild(div);
+        }
+      });
+    }
+
+    // Set up refresh timer
+    function setupRefreshTimer(interval) {
+      clearInterval(refreshTimer);
+      refreshInterval = interval;
+      
+      document.getElementById('refreshInterval').textContent = 
+        interval === 0 ? 'Manual' : 
+        interval < 60 ? `${interval}s` : 
+        `${interval / 60}m`;
+      
+      if (interval > 0) {
+        refreshTimer = setInterval(refreshDashboard, interval * 1000);
+      }
+    }
+
+    // Refresh dashboard
+    async function refreshDashboard() {
+      const campaignId = document.getElementById('campaignSelect').value;
+      if (!campaignId) return;
+      
+      try {
+        const data = await getCampaignData(campaignId);
+        currentCampaignData = data;
+        updateDashboard(data);
+      } catch (error) {
+        console.error('Error refreshing dashboard:', error);
+      }
+    }
+
+    // Show confirmation modal
+    function showConfirmation(title, message, action) {
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmBody').textContent = message;
+      
+      const confirmBtn = document.getElementById('confirmBtn');
+      confirmBtn.onclick = action;
+      
+      const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+      modal.show();
+    }
+
+    // Initialize the page
+    document.addEventListener('DOMContentLoaded', async function() {
+      if (!isAuthenticated()) {
+        document.getElementById('authAlert').classList.remove('d-none');
+        return;
+      }
+      
+      document.getElementById('mainContent').classList.remove('d-none');
+      
+      // Load campaigns
+      try {
+        const campaigns = await getCampaigns();
+        const select = document.getElementById('campaignSelect');
+        
+        campaigns.forEach(campaign => {
+          const option = document.createElement('option');
+          option.value = campaign.id;
+          option.textContent = campaign.name;
+          select.appendChild(option);
+        });
+        
+        // Set current campaign if available
+        const currentCampaignId = sessionStorage.getItem('currentCampaignId');
+        if (currentCampaignId) {
+          select.value = currentCampaignId;
+          document.getElementById('campaignId').textContent = currentCampaignId;
+          
+          // Load initial data
+          refreshDashboard();
+        }
+      } catch (error) {
+        console.error('Error loading campaigns:', error);
+      }
+      
+      // Campaign selection change
+      document.getElementById('campaignSelect').addEventListener('change', function() {
+        const campaignId = this.value;
+        document.getElementById('campaignId').textContent = campaignId;
+        sessionStorage.setItem('currentCampaignId', campaignId);
+        
+        if (campaignId) {
+          refreshDashboard();
+        }
+      });
+      
+      // Refresh button
+      document.getElementById('refreshBtn').addEventListener('click', refreshDashboard);
+      
+      // Auto-refresh options
+      document.querySelectorAll('.refresh-option').forEach(option => {
+        option.addEventListener('click', function() {
+          const interval = parseInt(this.getAttribute('data-interval'), 10);
+          setupRefreshTimer(interval);
+        });
+      });
+      
+      // Stop all instances
+      document.getElementById('stopBtn').addEventListener('click', function() {
+        if (!currentCampaignData) return;
+        
+        const instanceIds = currentCampaignData.instances.map(i => i.id);
+        showConfirmation(
+          'Stop All Instances', 
+          `Are you sure you want to stop all ${instanceIds.length} instances? This will pause the campaign but keep instances available for restart.`,
+          async () => {
+            try {
+              await stopInstances(instanceIds);
+              alert('Instances are stopping. The dashboard will update shortly.');
+              setTimeout(refreshDashboard, 3000);
+            } catch (error) {
+              alert('Error stopping instances: ' + error.message);
+            }
+          }
+        );
+      });
+      
+      // Terminate all instances
+      document.getElementById('terminateBtn').addEventListener('click', function() {
+        if (!currentCampaignData) return;
+        
+        const instanceIds = currentCampaignData.instances.map(i => i.id);
+        showConfirmation(
+          'Terminate All Instances', 
+          `WARNING: Are you sure you want to terminate all ${instanceIds.length} instances? This will end the campaign and delete all instances.`,
+          async () => {
+            try {
+              await terminateInstances(instanceIds);
+              alert('Instances are terminating. The dashboard will update shortly.');
+              setTimeout(refreshDashboard, 3000);
+            } catch (error) {
+              alert('Error terminating instances: ' + error.message);
+            }
+          }
+        );
+      });
+      
+      // Export results
+      document.getElementById('exportBtn').addEventListener('click', function() {
+        if (!currentCampaignData) return;
+        
+        const filename = `campaign-${currentCampaignData.id}-export.json`;
+        const dataStr = JSON.stringify(currentCampaignData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+      });
+      
+      // Set up initial auto-refresh
+      setupRefreshTimer(30);
+      
+      // Logout button
+      document.getElementById('logoutBtn').addEventListener('click', logout);
+    });
+  </script>
+</body>
+</html>

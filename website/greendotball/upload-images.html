@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Images - GreenDotBall</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body {
+      background-color: #f5f5f5;
+    }
+    .main-container {
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .card {
+      margin-bottom: 20px;
+      border: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .header-logo {
+      width: 40px;
+      height: 40px;
+      margin-right: 10px;
+      background-color: #28a745;
+      border-radius: 50%;
+    }
+    .progress {
+      height: 20px;
+      margin-bottom: 10px;
+    }
+    .drop-zone {
+      border: 2px dashed #ccc;
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .drop-zone:hover {
+      border-color: #28a745;
+      background-color: rgba(40, 167, 69, 0.05);
+    }
+    .drop-zone.dragover {
+      border-color: #28a745;
+      background-color: rgba(40, 167, 69, 0.1);
+    }
+    .image-preview {
+      display: flex;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    .image-item {
+      width: 100px;
+      height: 100px;
+      margin: 5px;
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+      background-size: cover;
+      background-position: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container main-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="d-flex align-items-center">
+        <div class="header-logo"></div>
+        <h2 class="mb-0">Upload Campaign Images</h2>
+      </div>
+      <div>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm me-2">
+          <i class="bi bi-house"></i> Home
+        </a>
+        <button class="btn btn-outline-secondary btn-sm" id="logoutBtn">
+          <i class="bi bi-box-arrow-right"></i> Logout
+        </button>
+      </div>
+    </div>
+
+    <!-- Authentication Check -->
+    <div class="alert alert-danger d-none" id="authAlert">
+      Please <a href="index.html">login</a> to access this page.
+    </div>
+    
+    <!-- Main Form (shown when authenticated) -->
+    <div id="mainContent" class="d-none">
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 class="card-title"><i class="bi bi-info-circle"></i> Instructions</h5>
+          <p>Upload images for your campaign. You can either upload a ZIP file containing all images, or select multiple image files.</p>
+          <div class="alert alert-warning">
+            <strong>Note:</strong> Images will be automatically renamed according to the GreenDotBall naming convention.
+          </div>
+        </div>
+      </div>
+
+      <form id="imageForm">
+        <div class="card">
+          <div class="card-body">
+            <div class="mb-3">
+              <label for="campaignSelect" class="form-label">Select Campaign</label>
+              <select class="form-control" id="campaignSelect">
+                <option value="">-- Select an existing campaign --</option>
+                <!-- Will be populated by JavaScript -->
+              </select>
+            </div>
+            
+            <div class="mb-3">
+              <label for="newCampaignName" class="form-label">Or Create New Campaign</label>
+              <input type="text" class="form-control" id="newCampaignName" placeholder="e.g., February-Campaign-2026">
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Upload Method</label>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="uploadMethod" id="zipMethod" checked>
+                <label class="form-check-label" for="zipMethod">
+                  Upload ZIP file
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="uploadMethod" id="multiMethod">
+                <label class="form-check-label" for="multiMethod">
+                  Upload individual images
+                </label>
+              </div>
+            </div>
+            
+            <!-- ZIP Upload Option -->
+            <div id="zipUploadSection">
+              <div class="drop-zone" id="zipDropZone">
+                <span class="text-muted">Drop ZIP file here or click to browse</span>
+                <input type="file" id="zipFileInput" accept=".zip" hidden>
+              </div>
+              <div id="zipFilename" class="mt-2"></div>
+            </div>
+            
+            <!-- Multiple Images Upload Option -->
+            <div id="multiUploadSection" class="d-none">
+              <div class="drop-zone" id="multiDropZone">
+                <span class="text-muted">Drop image files here or click to browse</span>
+                <input type="file" id="multiFileInput" accept="image/*" multiple hidden>
+              </div>
+              <div class="image-preview" id="imagePreview"></div>
+              <div id="imageCount" class="mt-2"></div>
+            </div>
+            
+            <div class="progress d-none mt-3" id="uploadProgress">
+              <div class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+            </div>
+            
+            <div class="d-grid gap-2 mt-3">
+              <button type="submit" class="btn btn-success" id="uploadBtn">
+                <i class="bi bi-cloud-upload"></i> Upload Images
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <!-- Results Section -->
+      <div class="card mt-4 d-none" id="resultsCard">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="bi bi-check-circle"></i> Upload Complete</h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <strong>Campaign ID:</strong> <span id="resultCampaignId"></span>
+          </div>
+          <div class="mb-3">
+            <strong>Images Processed:</strong> <span id="resultImageCount"></span> images
+          </div>
+          <div class="d-grid gap-2">
+            <a href="launch-campaign.html" class="btn btn-danger">
+              <i class="bi bi-rocket-takeoff"></i> Launch This Campaign
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Authentication & Form Logic -->
+  <script>
+    // Authentication check
+    function isAuthenticated() {
+      return sessionStorage.getItem('authenticated') === 'true';
+    }
+
+    function logout() {
+      sessionStorage.removeItem('authenticated');
+      sessionStorage.removeItem('username');
+      window.location.href = 'index.html';
+    }
+
+    // Simulated API calls (to be replaced with actual API Gateway calls)
+    async function getCampaigns() {
+      // Simulated API response
+      return [
+        { id: 'feb-campaign-1676654321', name: 'February Campaign 2026' },
+        { id: 'march-promo-1676654987', name: 'March Promotion 2026' }
+      ];
+    }
+
+    async function uploadImages(campaignId, files) {
+      return new Promise((resolve) => {
+        // Simulate upload progress
+        const progressBar = document.querySelector('#uploadProgress .progress-bar');
+        let progress = 0;
+        
+        const interval = setInterval(() => {
+          progress += 5;
+          progressBar.style.width = progress + '%';
+          
+          if (progress >= 100) {
+            clearInterval(interval);
+            
+            // Simulate API response
+            resolve({
+              success: true,
+              campaignId: campaignId,
+              imageCount: files.length || 1
+            });
+          }
+        }, 200);
+      });
+    }
+
+    // Initialize the page
+    document.addEventListener('DOMContentLoaded', async function() {
+      if (!isAuthenticated()) {
+        document.getElementById('authAlert').classList.remove('d-none');
+        return;
+      }
+      
+      document.getElementById('mainContent').classList.remove('d-none');
+      
+      // Load campaigns
+      try {
+        const campaigns = await getCampaigns();
+        const select = document.getElementById('campaignSelect');
+        
+        campaigns.forEach(campaign => {
+          const option = document.createElement('option');
+          option.value = campaign.id;
+          option.textContent = campaign.name;
+          select.appendChild(option);
+        });
+        
+        // Set current campaign if available
+        const currentCampaignId = sessionStorage.getItem('currentCampaignId');
+        if (currentCampaignId) {
+          select.value = currentCampaignId;
+        }
+        
+        const currentCampaignName = sessionStorage.getItem('currentCampaignName');
+        if (currentCampaignName && !currentCampaignId) {
+          document.getElementById('newCampaignName').value = currentCampaignName;
+        }
+      } catch (error) {
+        console.error('Error loading campaigns:', error);
+      }
+      
+      // Setup upload method toggle
+      document.getElementById('zipMethod').addEventListener('change', function() {
+        if (this.checked) {
+          document.getElementById('zipUploadSection').classList.remove('d-none');
+          document.getElementById('multiUploadSection').classList.add('d-none');
+        }
+      });
+      
+      document.getElementById('multiMethod').addEventListener('change', function() {
+        if (this.checked) {
+          document.getElementById('zipUploadSection').classList.add('d-none');
+          document.getElementById('multiUploadSection').classList.remove('d-none');
+        }
+      });
+      
+      // Setup ZIP file drop zone
+      const zipDropZone = document.getElementById('zipDropZone');
+      const zipFileInput = document.getElementById('zipFileInput');
+      
+      zipDropZone.addEventListener('click', () => {
+        zipFileInput.click();
+      });
+      
+      zipFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+          document.getElementById('zipFilename').textContent = `Selected file: ${e.target.files[0].name}`;
+        }
+      });
+      
+      // Setup image files drop zone
+      const multiDropZone = document.getElementById('multiDropZone');
+      const multiFileInput = document.getElementById('multiFileInput');
+      const imagePreview = document.getElementById('imagePreview');
+      
+      multiDropZone.addEventListener('click', () => {
+        multiFileInput.click();
+      });
+      
+      multiFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+          imagePreview.innerHTML = '';
+          document.getElementById('imageCount').textContent = `Selected ${e.target.files.length} image(s)`;
+          
+          // Show image previews
+          Array.from(e.target.files).slice(0, 12).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const div = document.createElement('div');
+              div.className = 'image-item';
+              div.style.backgroundImage = `url(${e.target.result})`;
+              imagePreview.appendChild(div);
+            };
+            reader.readAsDataURL(file);
+          });
+          
+          if (e.target.files.length > 12) {
+            const div = document.createElement('div');
+            div.className = 'image-item';
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.justifyContent = 'center';
+            div.style.backgroundColor = '#f5f5f5';
+            div.textContent = `+${e.target.files.length - 12}`;
+            imagePreview.appendChild(div);
+          }
+        }
+      });
+      
+      // Handle form submission
+      document.getElementById('imageForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const campaignId = document.getElementById('campaignSelect').value;
+        const newCampaignName = document.getElementById('newCampaignName').value;
+        
+        if (!campaignId && !newCampaignName) {
+          alert('Please select an existing campaign or enter a new campaign name.');
+          return;
+        }
+        
+        const isZipMethod = document.getElementById('zipMethod').checked;
+        let files;
+        
+        if (isZipMethod) {
+          files = zipFileInput.files;
+          if (!files.length || !files[0].name.endsWith('.zip')) {
+            alert('Please select a valid ZIP file.');
+            return;
+          }
+        } else {
+          files = multiFileInput.files;
+          if (!files.length) {
+            alert('Please select at least one image file.');
+            return;
+          }
+        }
+        
+        // Show progress bar
+        document.getElementById('uploadProgress').classList.remove('d-none');
+        document.getElementById('uploadBtn').disabled = true;
+        
+        try {
+          // Upload images
+          const finalCampaignId = campaignId || (newCampaignName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now());
+          const result = await uploadImages(finalCampaignId, files);
+          
+          // Show results
+          document.getElementById('resultCampaignId').textContent = result.campaignId;
+          document.getElementById('resultImageCount').textContent = result.imageCount;
+          document.getElementById('resultsCard').classList.remove('d-none');
+          
+          // Store campaign ID for next steps
+          sessionStorage.setItem('currentCampaignId', result.campaignId);
+          if (newCampaignName) {
+            sessionStorage.setItem('currentCampaignName', newCampaignName);
+          }
+          
+        } catch (error) {
+          alert('Error uploading images: ' + error.message);
+        }
+      });
+      
+      // Logout button
+      document.getElementById('logoutBtn').addEventListener('click', logout);
+    });
+  </script>
+</body>
+</html>
