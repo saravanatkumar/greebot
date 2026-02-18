@@ -1,0 +1,19 @@
+[Unit]
+Description=Green Dot Ball Job Bot Auto-Runner
+After=network-online.target cloud-final.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ec2-user
+WorkingDirectory=/opt/greendotball-bot
+Environment="PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true"
+Environment="PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome"
+Environment="HOME=/home/ec2-user"
+ExecStart=/opt/greendotball-bot/scripts/run-job-bot.sh
+StandardOutput=journal
+StandardError=journal
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target
