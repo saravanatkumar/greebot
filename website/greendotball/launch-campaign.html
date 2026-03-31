@@ -7,419 +7,607 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <style>
-    body {
-      background-color: #f5f5f5;
+    body { background-color: #f0f4f8; }
+    .main-container { max-width: 860px; margin: 40px auto; padding: 0 16px 60px; }
+    .header-logo { width: 38px; height: 38px; background-color: #28a745; border-radius: 50%; margin-right: 10px; }
+
+    /* Stepper */
+    .stepper { display: flex; align-items: center; margin-bottom: 32px; }
+    .step { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; }
+    .step-circle {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 16px; border: 3px solid #dee2e6;
+      background: #fff; color: #adb5bd; transition: all 0.3s;
     }
-    .main-container {
-      max-width: 800px;
-      margin: 50px auto;
-      padding: 20px;
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    .card {
-      margin-bottom: 20px;
-      border: none;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .header-logo {
-      width: 40px;
-      height: 40px;
-      margin-right: 10px;
-      background-color: #28a745;
-      border-radius: 50%;
-    }
-    .progress {
-      height: 20px;
-      margin-bottom: 10px;
-    }
-    .stat-card {
-      text-align: center;
-      padding: 15px;
-    }
-    .stat-value {
-      font-size: 36px;
-      font-weight: bold;
-      color: #28a745;
-    }
-    .stat-label {
-      font-size: 14px;
-      color: #6c757d;
-    }
-    .launch-btn {
-      padding: 15px 30px;
-      font-size: 20px;
-    }
-    .instance-list {
-      max-height: 300px;
-      overflow-y: auto;
-    }
+    .step.active .step-circle { border-color: #0d6efd; background: #0d6efd; color: #fff; }
+    .step.done .step-circle { border-color: #28a745; background: #28a745; color: #fff; }
+    .step-label { font-size: 12px; margin-top: 6px; color: #6c757d; font-weight: 500; }
+    .step.active .step-label { color: #0d6efd; font-weight: 700; }
+    .step.done .step-label { color: #28a745; }
+    .step-line { flex: 1; height: 3px; background: #dee2e6; margin: 0 4px; margin-bottom: 22px; transition: background 0.3s; }
+    .step-line.done { background: #28a745; }
+
+    /* Cards */
+    .step-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); padding: 28px; margin-bottom: 20px; }
+    .step-card h5 { font-weight: 700; margin-bottom: 18px; }
+
+    /* Stat boxes */
+    .stat-box { background: #f8f9fa; border-radius: 10px; padding: 16px; text-align: center; }
+    .stat-num { font-size: 32px; font-weight: 800; color: #0d6efd; line-height: 1.1; }
+    .stat-lbl { font-size: 12px; color: #6c757d; margin-top: 4px; }
+
+    /* Job table */
+    .job-table-wrap { max-height: 320px; overflow-y: auto; border-radius: 8px; border: 1px solid #dee2e6; }
+    .job-table { margin-bottom: 0; font-size: 13px; }
+    .job-table thead th { position: sticky; top: 0; background: #f8f9fa; z-index: 1; }
+
+    /* Instance result list */
+    .instance-list { max-height: 280px; overflow-y: auto; }
+    .instance-item { display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; background: #f8f9fa; border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
   </style>
 </head>
 <body>
   <div class="container main-container">
+
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div class="d-flex align-items-center">
         <div class="header-logo"></div>
         <h2 class="mb-0">Launch Campaign</h2>
       </div>
       <div>
-        <a href="index.html" class="btn btn-outline-secondary btn-sm me-2">
-          <i class="bi bi-house"></i> Home
-        </a>
-        <button class="btn btn-outline-secondary btn-sm" id="logoutBtn">
-          <i class="bi bi-box-arrow-right"></i> Logout
-        </button>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm me-2"><i class="bi bi-house"></i> Home</a>
+        <button class="btn btn-outline-secondary btn-sm" id="logoutBtn"><i class="bi bi-box-arrow-right"></i> Logout</button>
       </div>
     </div>
 
-    <!-- Authentication Check -->
+    <!-- Auth Alert -->
     <div class="alert alert-danger d-none" id="authAlert">
       Please <a href="index.html">login</a> to access this page.
     </div>
-    
-    <!-- Main Content (shown when authenticated) -->
+
+    <!-- Main Content -->
     <div id="mainContent" class="d-none">
-      <div class="card mb-4">
-        <div class="card-body">
-          <h5 class="card-title"><i class="bi bi-info-circle"></i> Instructions</h5>
-          <p>Launch EC2 instances for your campaign. Each phone number will be assigned to a separate EC2 instance.</p>
-          <div class="alert alert-warning">
-            <strong>Warning:</strong> This will create actual AWS resources that will incur costs. Be sure to terminate instances when your campaign is complete.
+
+      <!-- Stepper -->
+      <div class="stepper">
+        <div class="step active" id="step1-indicator">
+          <div class="step-circle">1</div>
+          <div class="step-label">Upload Data</div>
+        </div>
+        <div class="step-line" id="line1"></div>
+        <div class="step" id="step2-indicator">
+          <div class="step-circle">2</div>
+          <div class="step-label">Create Jobs</div>
+        </div>
+        <div class="step-line" id="line2"></div>
+        <div class="step" id="step3-indicator">
+          <div class="step-circle">3</div>
+          <div class="step-label">Start Campaign</div>
+        </div>
+      </div>
+
+      <!-- ===================== STEP 1: Upload ===================== -->
+      <div id="step1">
+        <div class="step-card">
+          <h5><i class="bi bi-upload text-primary me-2"></i>Step 1 — Upload Campaign Data</h5>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Campaign Name</label>
+            <input type="text" class="form-control" id="campaignName" placeholder="e.g. April Launch 2026" />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Phone Numbers <span class="text-muted fw-normal">(one per line, 10-digit)</span></label>
+            <textarea class="form-control font-monospace" id="phoneInput" rows="7"
+              placeholder="9810887396&#10;9810846436&#10;9810838127"></textarea>
+            <div class="form-text" id="phoneCountHint">0 numbers entered</div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Images <span class="text-muted fw-normal">(.zip file)</span></label>
+            <input type="file" class="form-control" id="imagesZip" accept=".zip" />
+            <div class="form-text">Zip all your images into one file and upload here.</div>
+          </div>
+
+          <div class="alert alert-warning py-2 mb-4">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            <strong>Note:</strong> Each job = 1 phone × 10 images. Uploading will generate a Campaign ID and store your data in S3.
+          </div>
+
+          <button class="btn btn-primary px-4" id="uploadBtn">
+            <i class="bi bi-cloud-upload me-1"></i> Upload & Generate Campaign ID
+          </button>
+
+          <div class="mt-3 d-none" id="uploadProgress">
+            <div class="d-flex align-items-center gap-2 text-primary">
+              <div class="spinner-border spinner-border-sm"></div>
+              <span id="uploadStatus">Uploading...</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <form id="launchForm">
-        <div class="card">
-          <div class="card-header">
-            <h5 class="mb-0">Campaign Selection</h5>
-          </div>
-          <div class="card-body">
-            <div class="mb-3">
-              <label for="campaignSelect" class="form-label">Select Campaign</label>
-              <select class="form-control" id="campaignSelect">
-                <option value="">-- Select a campaign --</option>
-                <!-- Will be populated by JavaScript -->
-              </select>
-            </div>
-          </div>
-        </div>
+      <!-- ===================== STEP 2: Create Jobs ===================== -->
+      <div id="step2" class="d-none">
+        <div class="step-card">
+          <h5><i class="bi bi-list-task text-primary me-2"></i>Step 2 — Create Jobs</h5>
 
-        <div class="card">
-          <div class="card-header">
-            <h5 class="mb-0">Campaign Details</h5>
-          </div>
-          <div class="card-body">
-            <div class="row">
-              <div class="col-md-4">
-                <div class="stat-card">
-                  <div class="stat-value" id="phoneCount">0</div>
-                  <div class="stat-label">Phone Numbers</div>
-                </div>
+          <!-- Upload Summary -->
+          <div class="row g-3 mb-4">
+            <div class="col-4">
+              <div class="stat-box">
+                <div class="stat-num" id="s2PhoneCount">0</div>
+                <div class="stat-lbl">Phone Numbers</div>
               </div>
-              <div class="col-md-4">
-                <div class="stat-card">
-                  <div class="stat-value" id="imageCount">0</div>
-                  <div class="stat-label">Images</div>
-                </div>
+            </div>
+            <div class="col-4">
+              <div class="stat-box">
+                <div class="stat-num" id="s2ImageCount">0</div>
+                <div class="stat-lbl">Images</div>
               </div>
-              <div class="col-md-4">
-                <div class="stat-card">
-                  <div class="stat-value" id="instanceCount">0</div>
-                  <div class="stat-label">Instances to Launch</div>
-                </div>
+            </div>
+            <div class="col-4">
+              <div class="stat-box">
+                <div class="stat-num" id="s2TotalCombo">0</div>
+                <div class="stat-lbl">Total Combinations</div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h5 class="mb-0">Launch Settings</h5>
+          <div class="alert alert-info py-2 mb-4">
+            <i class="bi bi-info-circle me-1"></i>
+            Campaign ID: <strong id="s2CampaignId">—</strong>
+            &nbsp;|&nbsp; Images folder: <code id="s2ImagesPath">—</code>
           </div>
-          <div class="card-body">
-            <div class="row">
-              <div class="col-md-6">
-                <div class="mb-3">
-                  <label for="regionSelect" class="form-label">AWS Region</label>
-                  <select class="form-control" id="regionSelect">
-                    <option value="ap-south-1">ap-south-1 (Mumbai)</option>
-                    <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
-                  </select>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="mb-3">
-                  <label for="instanceTypeSelect" class="form-label">Instance Type</label>
-                  <select class="form-control" id="instanceTypeSelect">
-                    <option value="t3.small">t3.small</option>
-                    <option value="t3.medium">t3.medium</option>
-                  </select>
-                </div>
-              </div>
-            </div>
 
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" id="confirmCheck">
-              <label class="form-check-label" for="confirmCheck">
-                I confirm that I want to launch EC2 instances and understand the associated costs
-              </label>
+          <p class="text-muted mb-3">
+            Jobs will be created with <strong>1 phone × 10 images each</strong>.
+            Click below to generate all job files and save them to S3.
+          </p>
+
+          <button class="btn btn-success px-4" id="createJobsBtn">
+            <i class="bi bi-gear me-1"></i> Create Jobs
+          </button>
+
+          <div class="mt-3 d-none" id="createJobsProgress">
+            <div class="d-flex align-items-center gap-2 text-success">
+              <div class="spinner-border spinner-border-sm"></div>
+              <span id="createJobsStatus">Generating jobs...</span>
             </div>
-            
-            <div class="d-grid gap-2">
-              <button type="submit" class="btn btn-danger launch-btn" id="launchBtn" disabled>
-                <i class="bi bi-rocket-takeoff"></i> Launch Campaign
+          </div>
+
+          <!-- Jobs table (shown after creation) -->
+          <div class="mt-4 d-none" id="jobsTableWrap">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-semibold">Generated Jobs <span class="badge bg-success" id="jobCountBadge">0</span></span>
+              <span class="text-muted small">EC2 instances needed: <strong id="instancesNeeded">0</strong></span>
+            </div>
+            <div class="job-table-wrap">
+              <table class="table job-table table-hover">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Job ID</th>
+                    <th>Phone</th>
+                    <th>Images</th>
+                    <th>Submissions</th>
+                  </tr>
+                </thead>
+                <tbody id="jobsTableBody"></tbody>
+              </table>
+            </div>
+            <div class="mt-3">
+              <button class="btn btn-primary px-4" id="proceedToStartBtn">
+                <i class="bi bi-arrow-right me-1"></i> Proceed to Start Campaign
               </button>
             </div>
           </div>
         </div>
-      </form>
-
-      <!-- Launch Progress Section -->
-      <div class="card mt-4 d-none" id="progressCard">
-        <div class="card-header bg-primary text-white">
-          <h5 class="mb-0"><i class="bi bi-cloud-upload"></i> Launching Campaign</h5>
-        </div>
-        <div class="card-body">
-          <div class="progress">
-            <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" id="launchProgress" role="progressbar" style="width: 0%"></div>
-          </div>
-          <div class="text-center mt-3" id="progressStatus">
-            Preparing to launch instances...
-          </div>
-        </div>
       </div>
 
-      <!-- Launch Results Section -->
-      <div class="card mt-4 d-none" id="resultsCard">
-        <div class="card-header bg-success text-white">
-          <h5 class="mb-0"><i class="bi bi-check-circle"></i> Campaign Launched</h5>
-        </div>
-        <div class="card-body">
-          <div class="mb-3">
-            <strong>Campaign ID:</strong> <span id="resultCampaignId"></span>
-          </div>
-          <div class="mb-3">
-            <strong>Instances Launched:</strong> <span id="resultInstanceCount"></span>
-          </div>
-          <div class="mb-3">
-            <strong>Status:</strong> <span class="badge bg-success">Running</span>
-          </div>
-          <div class="mb-3">
-            <h6>Instances:</h6>
-            <div class="instance-list" id="instanceList">
-              <!-- Will be populated by JavaScript -->
+      <!-- ===================== STEP 3: Start Campaign ===================== -->
+      <div id="step3" class="d-none">
+        <div class="step-card">
+          <h5><i class="bi bi-rocket-takeoff text-primary me-2"></i>Step 3 — Start Campaign</h5>
+
+          <!-- Summary stats -->
+          <div class="row g-3 mb-4">
+            <div class="col-3">
+              <div class="stat-box">
+                <div class="stat-num" id="s3TotalJobs">0</div>
+                <div class="stat-lbl">Total Jobs</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="stat-box">
+                <div class="stat-num" id="s3TotalSubmissions">0</div>
+                <div class="stat-lbl">Total Submissions</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="stat-box">
+                <div class="stat-num" id="s3InstanceCount">0</div>
+                <div class="stat-lbl">EC2 Instances</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="stat-box">
+                <div class="stat-num" id="s3EstCost">$0</div>
+                <div class="stat-lbl">Est. Cost (Spot)</div>
+              </div>
             </div>
           </div>
-          <div class="d-grid gap-2">
+
+          <div class="alert alert-info py-2 mb-3">
+            Campaign ID: <strong id="s3CampaignId">—</strong>
+            &nbsp;|&nbsp; Jobs per instance: <strong>12</strong>
+            &nbsp;|&nbsp; Submissions per instance: <strong>120</strong>
+          </div>
+
+          <!-- Launch settings -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">AWS Region</label>
+              <select class="form-control" id="regionSelect">
+                <option value="ap-south-1">ap-south-1 (Mumbai)</option>
+                <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
+                <option value="us-east-1">us-east-1 (N. Virginia)</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Instance Type</label>
+              <select class="form-control" id="instanceTypeSelect">
+                <option value="t3.small">t3.small (recommended)</option>
+                <option value="t3.medium">t3.medium</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-check mb-4">
+            <input class="form-check-input" type="checkbox" id="confirmCheck">
+            <label class="form-check-label" for="confirmCheck">
+              I confirm I want to launch EC2 instances and understand the associated costs.
+            </label>
+          </div>
+
+          <button class="btn btn-danger px-5 py-2 fs-5" id="startBtn" disabled>
+            <i class="bi bi-play-circle me-2"></i> START CAMPAIGN
+          </button>
+
+          <!-- Launch progress -->
+          <div class="mt-4 d-none" id="launchProgress">
+            <div class="progress mb-2" style="height:18px;">
+              <div class="progress-bar bg-danger progress-bar-striped progress-bar-animated"
+                id="launchProgressBar" style="width:0%"></div>
+            </div>
+            <div class="text-center text-muted small" id="launchStatus">Launching instances...</div>
+          </div>
+        </div>
+
+        <!-- Results (shown after launch) -->
+        <div class="step-card d-none" id="resultsCard">
+          <h5><i class="bi bi-check-circle text-success me-2"></i>Campaign Launched!</h5>
+          <div class="mb-2">Campaign ID: <strong id="resultCampaignId">—</strong></div>
+          <div class="mb-3">Instances launched: <strong id="resultInstanceCount">—</strong></div>
+          <div class="instance-list" id="instanceList"></div>
+          <div class="mt-3">
             <a href="dashboard.html" class="btn btn-primary">
-              <i class="bi bi-graph-up"></i> View Campaign Dashboard
+              <i class="bi bi-graph-up me-1"></i> View Dashboard
             </a>
           </div>
         </div>
       </div>
-    </div>
+
+    </div><!-- /mainContent -->
   </div>
 
-  <!-- JS Dependencies -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  
-  <!-- Authentication & Form Logic -->
   <script>
-    // Authentication check
-    function isAuthenticated() {
-      return sessionStorage.getItem('authenticated') === 'true';
-    }
+    // ─── Config ───────────────────────────────────────────────────────────────
+    const API = {
+      uploadCampaign:  'https://YOUR_API_GATEWAY_URL/upload-campaign',
+      createJobs:      'https://YOUR_API_GATEWAY_URL/create-jobs',
+      startCampaign:   'https://YOUR_API_GATEWAY_URL/start-campaign'
+    };
 
+    const JOBS_PER_INSTANCE   = 12;
+    const IMAGES_PER_JOB      = 10;
+    const COST_PER_INSTANCE   = 0.006; // approx spot t3.small/hour in USD
+
+    // ─── State ────────────────────────────────────────────────────────────────
+    let state = {
+      campaignId: null,
+      phoneCount: 0,
+      imageCount: 0,
+      imageFolder: null,
+      jobs: [],
+      instancesNeeded: 0
+    };
+
+    // ─── Auth ─────────────────────────────────────────────────────────────────
+    function isAuthenticated() { return sessionStorage.getItem('authenticated') === 'true'; }
     function logout() {
       sessionStorage.removeItem('authenticated');
       sessionStorage.removeItem('username');
       window.location.href = 'index.html';
     }
 
-    // Simulated API calls (to be replaced with actual API Gateway calls)
-    async function getCampaigns() {
-      // Simulated API response
-      return [
-        { 
-          id: 'feb-campaign-1676654321', 
-          name: 'February Campaign 2026',
-          phoneCount: 8,
-          imageCount: 32
-        },
-        { 
-          id: 'march-promo-1676654987', 
-          name: 'March Promotion 2026',
-          phoneCount: 12,
-          imageCount: 48
-        }
-      ];
-    }
+    // ─── Stepper helpers ──────────────────────────────────────────────────────
+    function setStep(n) {
+      [1,2,3].forEach(i => {
+        const ind = document.getElementById(`step${i}-indicator`);
+        ind.classList.remove('active','done');
+        if (i < n) ind.classList.add('done');
+        else if (i === n) ind.classList.add('active');
 
-    async function getCampaignDetails(campaignId) {
-      // Simulated API response - in reality this would fetch from S3
-      const campaigns = await getCampaigns();
-      return campaigns.find(c => c.id === campaignId) || { 
-        id: campaignId, 
-        name: 'Unknown Campaign',
-        phoneCount: 0,
-        imageCount: 0
-      };
-    }
-
-    async function launchCampaign(campaignId, region, instanceType) {
-      return new Promise((resolve) => {
-        // Simulate launch progress
-        const progressBar = document.getElementById('launchProgress');
-        const progressStatus = document.getElementById('progressStatus');
-        let progress = 0;
-        
-        const interval = setInterval(() => {
-          progress += 5;
-          progressBar.style.width = progress + '%';
-          
-          if (progress === 25) {
-            progressStatus.textContent = 'Creating EC2 instances...';
-          } else if (progress === 50) {
-            progressStatus.textContent = 'Configuring instance metadata...';
-          } else if (progress === 75) {
-            progressStatus.textContent = 'Starting instances...';
-          }
-          
-          if (progress >= 100) {
-            clearInterval(interval);
-            progressStatus.textContent = 'Launch complete!';
-            
-            // Get campaign details
-            getCampaignDetails(campaignId).then(campaign => {
-              // Simulate API response
-              resolve({
-                success: true,
-                campaignId: campaignId,
-                instanceCount: campaign.phoneCount,
-                instances: Array.from({ length: campaign.phoneCount }, (_, i) => ({
-                  id: `i-${Math.random().toString(36).substr(2, 8)}`,
-                  phoneNumber: `98xxx${i}xxxx`,
-                  status: 'pending'
-                }))
-              });
-            });
-          }
-        }, 200);
+        document.getElementById(`step${i}`).classList.toggle('d-none', i !== n);
       });
+      if (n > 1) document.getElementById('line1').classList.add('done');
+      if (n > 2) document.getElementById('line2').classList.add('done');
     }
 
-    // Initialize the page
-    document.addEventListener('DOMContentLoaded', async function() {
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+    function generateCampaignId(name) {
+      const now = new Date();
+      const d = `${now.toLocaleString('en-us',{month:'short'}).toLowerCase()}-${String(now.getDate()).padStart(2,'0')}-${now.getFullYear()}`;
+      const slug = name.trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'').slice(0,12);
+      const seq  = String(Math.floor(Math.random()*90)+10);
+      return `${d}-${slug}-${seq}`;
+    }
+
+    function calcInstances(totalJobs) {
+      return Math.ceil(totalJobs / JOBS_PER_INSTANCE);
+    }
+
+    function setBtn(id, loading, label) {
+      const btn = document.getElementById(id);
+      btn.disabled = loading;
+      btn.innerHTML = loading
+        ? `<span class="spinner-border spinner-border-sm me-2"></span>${label}`
+        : label;
+    }
+
+    // ─── Step 1: Upload ───────────────────────────────────────────────────────
+    document.getElementById('phoneInput').addEventListener('input', function() {
+      const lines = this.value.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+      document.getElementById('phoneCountHint').textContent = `${lines.length} number${lines.length===1?'':'s'} entered`;
+    });
+
+    document.getElementById('uploadBtn').addEventListener('click', async function() {
+      const name   = document.getElementById('campaignName').value.trim();
+      const phones = document.getElementById('phoneInput').value.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+      const file   = document.getElementById('imagesZip').files[0];
+
+      if (!name)           return alert('Please enter a campaign name.');
+      if (phones.length<1) return alert('Please enter at least one phone number.');
+      if (!file)           return alert('Please select a .zip file of images.');
+
+      const invalid = phones.filter(p => !/^\d{10}$/.test(p));
+      if (invalid.length) return alert(`Invalid phone numbers (must be 10 digits):\n${invalid.slice(0,5).join('\n')}`);
+
+      document.getElementById('uploadProgress').classList.remove('d-none');
+      document.getElementById('uploadStatus').textContent = 'Uploading images to S3...';
+      setBtn('uploadBtn', true, '<i class="bi bi-cloud-upload me-1"></i> Uploading...');
+
+      try {
+        const formData = new FormData();
+        formData.append('campaignName', name);
+        formData.append('phoneNumbers', phones.join('\n'));
+        formData.append('imagesZip', file);
+
+        const res = await fetch(API.uploadCampaign, { method: 'POST', body: formData });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const data = await res.json();
+
+        state.campaignId  = data.campaignId;
+        state.phoneCount  = data.phoneCount;
+        state.imageCount  = data.imageCount;
+        state.imageFolder = data.imageFolder;
+
+        sessionStorage.setItem('currentCampaignId', state.campaignId);
+        moveToStep2();
+
+      } catch (err) {
+        // DEV FALLBACK — remove when real Lambda is wired up
+        console.warn('API not available, using dev fallback:', err.message);
+        state.campaignId  = generateCampaignId(name);
+        state.phoneCount  = phones.length;
+        state.imageCount  = 80; // simulated
+        state.imageFolder = `campaigns/${state.campaignId}/images/`;
+        sessionStorage.setItem('currentCampaignId', state.campaignId);
+        moveToStep2();
+      } finally {
+        document.getElementById('uploadProgress').classList.add('d-none');
+        setBtn('uploadBtn', false, '<i class="bi bi-cloud-upload me-1"></i> Upload & Generate Campaign ID');
+      }
+    });
+
+    function moveToStep2() {
+      document.getElementById('s2PhoneCount').textContent  = state.phoneCount;
+      document.getElementById('s2ImageCount').textContent  = state.imageCount;
+      document.getElementById('s2TotalCombo').textContent  = state.phoneCount * state.imageCount;
+      document.getElementById('s2CampaignId').textContent  = state.campaignId;
+      document.getElementById('s2ImagesPath').textContent  = state.imageFolder;
+      setStep(2);
+    }
+
+    // ─── Step 2: Create Jobs ──────────────────────────────────────────────────
+    document.getElementById('createJobsBtn').addEventListener('click', async function() {
+      document.getElementById('createJobsProgress').classList.remove('d-none');
+      document.getElementById('createJobsStatus').textContent = 'Generating job combinations...';
+      setBtn('createJobsBtn', true, '<i class="bi bi-gear me-1"></i> Creating...');
+
+      try {
+        const res = await fetch(API.createJobs, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId:    state.campaignId,
+            imagesPerJob:  IMAGES_PER_JOB
+          })
+        });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const data = await res.json();
+        state.jobs = data.jobs;
+
+      } catch (err) {
+        // DEV FALLBACK
+        console.warn('API not available, using dev fallback:', err.message);
+        state.jobs = buildJobsLocally();
+      }
+
+      state.instancesNeeded = calcInstances(state.jobs.length);
+      renderJobsTable();
+      document.getElementById('createJobsProgress').classList.add('d-none');
+      setBtn('createJobsBtn', false, '<i class="bi bi-gear me-1"></i> Create Jobs');
+      document.getElementById('jobsTableWrap').classList.remove('d-none');
+    });
+
+    function buildJobsLocally() {
+      const jobs = [];
+      let jobNum = 1;
+      // Simulate: each phone gets ceil(imageCount/IMAGES_PER_JOB) jobs
+      const jobsPerPhone = Math.ceil(state.imageCount / IMAGES_PER_JOB);
+      for (let p = 1; p <= state.phoneCount; p++) {
+        for (let j = 0; j < jobsPerPhone; j++) {
+          const startImg = j * IMAGES_PER_JOB + 1;
+          const endImg   = Math.min(startImg + IMAGES_PER_JOB - 1, state.imageCount);
+          jobs.push({
+            jobId:       `job-${String(jobNum).padStart(3,'0')}`,
+            phone:       `Phone #${p}`,
+            imageRange:  `img${startImg}–img${endImg}`,
+            imageCount:  endImg - startImg + 1,
+            submissions: endImg - startImg + 1
+          });
+          jobNum++;
+        }
+      }
+      return jobs;
+    }
+
+    function renderJobsTable() {
+      const tbody = document.getElementById('jobsTableBody');
+      tbody.innerHTML = '';
+      state.jobs.forEach((job, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i+1}</td>
+          <td><code>${job.jobId}</code></td>
+          <td>${job.phone}</td>
+          <td>${job.imageRange || job.imageCount + ' images'}</td>
+          <td><span class="badge bg-primary">${job.submissions}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('jobCountBadge').textContent   = state.jobs.length;
+      document.getElementById('instancesNeeded').textContent = state.instancesNeeded;
+    }
+
+    document.getElementById('proceedToStartBtn').addEventListener('click', function() {
+      moveToStep3();
+    });
+
+    // ─── Step 3: Start Campaign ───────────────────────────────────────────────
+    function moveToStep3() {
+      const totalSubs = state.jobs.reduce((sum, j) => sum + j.submissions, 0);
+      const cost      = (state.instancesNeeded * COST_PER_INSTANCE).toFixed(3);
+
+      document.getElementById('s3TotalJobs').textContent       = state.jobs.length;
+      document.getElementById('s3TotalSubmissions').textContent = totalSubs.toLocaleString();
+      document.getElementById('s3InstanceCount').textContent   = state.instancesNeeded;
+      document.getElementById('s3EstCost').textContent         = `$${cost}`;
+      document.getElementById('s3CampaignId').textContent      = state.campaignId;
+      setStep(3);
+    }
+
+    document.getElementById('confirmCheck').addEventListener('change', function() {
+      document.getElementById('startBtn').disabled = !this.checked;
+    });
+
+    document.getElementById('startBtn').addEventListener('click', async function() {
+      const region       = document.getElementById('regionSelect').value;
+      const instanceType = document.getElementById('instanceTypeSelect').value;
+
+      document.getElementById('launchProgress').classList.remove('d-none');
+      setBtn('startBtn', true, '<i class="bi bi-play-circle me-2"></i> Launching...');
+      document.getElementById('confirmCheck').disabled = true;
+
+      // Animate progress bar
+      let prog = 0;
+      const bar    = document.getElementById('launchProgressBar');
+      const status = document.getElementById('launchStatus');
+      const ticker = setInterval(() => {
+        prog = Math.min(prog + 3, 90);
+        bar.style.width = prog + '%';
+        if (prog === 20) status.textContent = 'Configuring instance batches...';
+        if (prog === 50) status.textContent = 'Launching EC2 instances...';
+        if (prog === 80) status.textContent = 'Waiting for confirmation...';
+      }, 200);
+
+      try {
+        const res = await fetch(API.startCampaign, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId:    state.campaignId,
+            jobs:          state.jobs.map(j => j.jobId),
+            jobsPerBatch:  JOBS_PER_INSTANCE,
+            region,
+            instanceType
+          })
+        });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const data = await res.json();
+        clearInterval(ticker);
+        bar.style.width = '100%';
+        status.textContent = 'All instances launched!';
+        showResults(data.instances);
+
+      } catch (err) {
+        // DEV FALLBACK
+        console.warn('API not available, using dev fallback:', err.message);
+        clearInterval(ticker);
+        bar.style.width = '100%';
+        status.textContent = 'Launch simulation complete!';
+        const fakeInstances = Array.from({ length: state.instancesNeeded }, (_, i) => ({
+          instanceId: `i-${Math.random().toString(36).substr(2,10)}`,
+          jobBatch:   `jobs ${i*JOBS_PER_INSTANCE+1}–${Math.min((i+1)*JOBS_PER_INSTANCE, state.jobs.length)}`,
+          status:     'pending'
+        }));
+        showResults(fakeInstances);
+      }
+    });
+
+    function showResults(instances) {
+      document.getElementById('resultCampaignId').textContent    = state.campaignId;
+      document.getElementById('resultInstanceCount').textContent = instances.length;
+      const list = document.getElementById('instanceList');
+      list.innerHTML = '';
+      instances.forEach(inst => {
+        const d = document.createElement('div');
+        d.className = 'instance-item';
+        d.innerHTML = `
+          <span><i class="bi bi-server me-1 text-muted"></i><code>${inst.instanceId}</code>
+            <span class="text-muted ms-2">${inst.jobBatch || ''}</span></span>
+          <span class="badge bg-warning text-dark">${inst.status}</span>
+        `;
+        list.appendChild(d);
+      });
+      document.getElementById('resultsCard').classList.remove('d-none');
+      sessionStorage.setItem('currentCampaignId', state.campaignId);
+    }
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
       if (!isAuthenticated()) {
         document.getElementById('authAlert').classList.remove('d-none');
         return;
       }
-      
       document.getElementById('mainContent').classList.remove('d-none');
-      
-      // Load campaigns
-      try {
-        const campaigns = await getCampaigns();
-        const select = document.getElementById('campaignSelect');
-        
-        campaigns.forEach(campaign => {
-          const option = document.createElement('option');
-          option.value = campaign.id;
-          option.textContent = campaign.name;
-          select.appendChild(option);
-        });
-        
-        // Set current campaign if available
-        const currentCampaignId = sessionStorage.getItem('currentCampaignId');
-        if (currentCampaignId) {
-          select.value = currentCampaignId;
-          
-          // Update stats
-          const campaign = await getCampaignDetails(currentCampaignId);
-          document.getElementById('phoneCount').textContent = campaign.phoneCount;
-          document.getElementById('imageCount').textContent = campaign.imageCount;
-          document.getElementById('instanceCount').textContent = campaign.phoneCount;
-        }
-      } catch (error) {
-        console.error('Error loading campaigns:', error);
-      }
-      
-      // Campaign selection change
-      document.getElementById('campaignSelect').addEventListener('change', async function() {
-        const campaignId = this.value;
-        if (!campaignId) return;
-        
-        try {
-          const campaign = await getCampaignDetails(campaignId);
-          document.getElementById('phoneCount').textContent = campaign.phoneCount;
-          document.getElementById('imageCount').textContent = campaign.imageCount;
-          document.getElementById('instanceCount').textContent = campaign.phoneCount;
-        } catch (error) {
-          console.error('Error getting campaign details:', error);
-        }
-      });
-      
-      // Confirmation checkbox
-      document.getElementById('confirmCheck').addEventListener('change', function() {
-        document.getElementById('launchBtn').disabled = !this.checked;
-      });
-      
-      // Launch form submission
-      document.getElementById('launchForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const campaignId = document.getElementById('campaignSelect').value;
-        if (!campaignId) {
-          alert('Please select a campaign.');
-          return;
-        }
-        
-        const region = document.getElementById('regionSelect').value;
-        const instanceType = document.getElementById('instanceTypeSelect').value;
-        
-        // Show progress
-        document.getElementById('launchBtn').disabled = true;
-        document.getElementById('progressCard').classList.remove('d-none');
-        document.getElementById('confirmCheck').disabled = true;
-        
-        try {
-          // Launch campaign
-          const result = await launchCampaign(campaignId, region, instanceType);
-          
-          // Show results
-          document.getElementById('resultCampaignId').textContent = result.campaignId;
-          document.getElementById('resultInstanceCount').textContent = result.instanceCount;
-          
-          // Show instance list
-          const instanceList = document.getElementById('instanceList');
-          instanceList.innerHTML = '';
-          
-          result.instances.forEach(instance => {
-            const div = document.createElement('div');
-            div.className = 'alert alert-secondary d-flex justify-content-between align-items-center';
-            div.innerHTML = `
-              <span>${instance.id} (${instance.phoneNumber})</span>
-              <span class="badge bg-warning text-dark">${instance.status}</span>
-            `;
-            instanceList.appendChild(div);
-          });
-          
-          document.getElementById('resultsCard').classList.remove('d-none');
-          
-          // Store campaign ID for dashboard
-          sessionStorage.setItem('currentCampaignId', result.campaignId);
-          
-        } catch (error) {
-          alert('Error launching campaign: ' + error.message);
-          document.getElementById('launchBtn').disabled = false;
-          document.getElementById('confirmCheck').disabled = false;
-        }
-      });
-      
-      // Logout button
+      setStep(1);
       document.getElementById('logoutBtn').addEventListener('click', logout);
     });
   </script>

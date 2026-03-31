@@ -1,54 +1,96 @@
 #!/bin/bash
+# run-job-bot.sh
+# Executed on EC2 startup (via systemd or direct call).
+# Reads CAMPAIGN_ID + JOB_IDS from USER_DATA, git pulls latest code,
+# runs bot_new.js for all assigned jobs, uploads logs to S3, shuts down.
+
+set -uo pipefail
+
 export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
 export HOME=/home/ec2-user
 export NODE_ENV=production
+export AWS_DEFAULT_REGION=ap-south-1
+
+BOT_DIR="/opt/greendotball-bot"
+LOG_DIR="/var/log/greendotball-bot"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+LOG_FILE="$LOG_DIR/bot_$TIMESTAMP.log"
+
+mkdir -p "$LOG_DIR"
+
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
+
+log "========================================"
+log "GreenDotBall Job Bot — EC2 Startup"
+log "========================================"
 
 # Get instance metadata
-INSTANCE_ID=$(ec2-metadata --instance-id | cut -d ' ' -f 2)
+INSTANCE_ID=$(curl -sf http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || echo "unknown")
+log "Instance ID : $INSTANCE_ID"
 
-# Extract JOB_ID from user-data
-JOB_ID=$(curl -s http://169.254.169.254/latest/user-data | grep JOB_ID | cut -d'=' -f2)
+# ─── Read USER_DATA ───────────────────────────────────────────────────────────
+USER_DATA=$(curl -sf http://169.254.169.254/latest/user-data 2>/dev/null || echo "")
 
-if [ -z "$JOB_ID" ]; then
-  echo "ERROR: No Job ID provided in user-data. Exiting."
+CAMPAIGN_ID=$(echo "$USER_DATA" | grep "^CAMPAIGN_ID=" | cut -d'=' -f2- | tr -d '[:space:]')
+JOB_IDS=$(echo "$USER_DATA"    | grep "^JOB_IDS="     | cut -d'=' -f2- | tr -d '[:space:]')
+
+if [ -z "$CAMPAIGN_ID" ]; then
+  log "ERROR: CAMPAIGN_ID not found in USER_DATA"
+  log "USER_DATA dump: $USER_DATA"
   exit 1
 fi
 
-LOG_DIR="/var/log/greendotball-bot"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-LOG_FILE="$LOG_DIR/job-${JOB_ID}_$TIMESTAMP.log"
+if [ -z "$JOB_IDS" ]; then
+  log "ERROR: JOB_IDS not found in USER_DATA"
+  log "USER_DATA dump: $USER_DATA"
+  exit 1
+fi
 
-mkdir -p $LOG_DIR
-chown ec2-user:ec2-user $LOG_DIR
+log "Campaign ID : $CAMPAIGN_ID"
+log "Job IDs     : $JOB_IDS"
 
-echo "========================================" | tee -a $LOG_FILE
-echo "Job Bot started at $(date)" | tee -a $LOG_FILE
-echo "Instance ID: $INSTANCE_ID" | tee -a $LOG_FILE
-echo "Job ID: $JOB_ID" | tee -a $LOG_FILE
-echo "========================================" | tee -a $LOG_FILE
+export CAMPAIGN_ID
+export JOB_IDS
 
-cd /opt/greendotball-bot
+# ─── Git pull latest code ─────────────────────────────────────────────────────
+log "Pulling latest code..."
+cd "$BOT_DIR"
+git fetch origin 2>&1 | tee -a "$LOG_FILE"
+git reset --hard origin/main 2>&1 | tee -a "$LOG_FILE"
+log "Code updated to: $(git log -1 --format='%h %s')"
 
-echo "Syncing data from S3..." | tee -a $LOG_FILE
-aws s3 sync s3://greendotball-bot-data/jobs/ ./data/jobs/ 2>&1 | tee -a $LOG_FILE
-aws s3 sync s3://greendotball-bot-data/images/ ./data/images/ 2>&1 | tee -a $LOG_FILE
-aws s3 cp s3://greendotball-bot-data/config/config.json ./config/config.json 2>&1 | tee -a $LOG_FILE
+# ─── Install dependencies ─────────────────────────────────────────────────────
+log "Installing dependencies..."
+npm install --production 2>&1 | tee -a "$LOG_FILE"
 
-sleep 5
+# ─── Run the bot ──────────────────────────────────────────────────────────────
+log "Starting bot..."
+log "Command: node src/bot_new.js --campaign-id $CAMPAIGN_ID --job-ids $JOB_IDS"
 
-echo "Starting job bot execution for Job ID: $JOB_ID..." | tee -a $LOG_FILE
-node src/bot_new.js --job-id $JOB_ID 2>&1 | tee -a $LOG_FILE
+node src/bot_new.js \
+  --campaign-id "$CAMPAIGN_ID" \
+  --job-ids "$JOB_IDS" \
+  2>&1 | tee -a "$LOG_FILE"
 
-EXIT_CODE=$?
-echo "Bot finished with exit code: $EXIT_CODE" | tee -a $LOG_FILE
+BOT_EXIT=${PIPESTATUS[0]}
+log "Bot finished with exit code: $BOT_EXIT"
 
-echo "Uploading logs to S3..." | tee -a $LOG_FILE
-aws s3 cp $LOG_FILE "s3://greendotball-bot-data/logs/job-${JOB_ID}/${INSTANCE_ID}_${TIMESTAMP}.log" 2>&1 | tee -a $LOG_FILE
+# ─── Upload logs to S3 ────────────────────────────────────────────────────────
+log "Uploading logs to S3..."
+aws s3 cp "$LOG_FILE" \
+  "s3://greendotball-bot-data/campaigns/$CAMPAIGN_ID/logs/$INSTANCE_ID-$TIMESTAMP.log" \
+  2>&1 | tee -a "$LOG_FILE" || true
 
-echo "Script completed at $(date)" | tee -a $LOG_FILE
+if [ -d "$BOT_DIR/logs" ]; then
+  aws s3 sync "$BOT_DIR/logs/" \
+    "s3://greendotball-bot-data/campaigns/$CAMPAIGN_ID/logs/$INSTANCE_ID/" \
+    2>&1 | tee -a "$LOG_FILE" || true
+fi
 
-# Auto-shutdown instance after completion
-echo "Shutting down instance in 60 seconds..." | tee -a $LOG_FILE
+log "All done at $(date)"
+
+# ─── Auto-shutdown ────────────────────────────────────────────────────────────
+log "Instance will shut down in 60 seconds..."
 sleep 60
-shutdown -h now
+sudo shutdown -h now
