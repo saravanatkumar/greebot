@@ -75,6 +75,10 @@ exports.handler = async (event) => {
         `TOTAL_BATCHES=${batches.length}`
       ].join('\n');
 
+      // Instance name: {campaignId}-{firstJobId}-inst-{batchNum}
+      const firstJobId    = batch[0];
+      const instanceName  = `${campaignId}-${firstJobId}-inst-${batchNum}`;
+
       try {
         const result = await ec2.runInstances({
           ImageId:          AMI_ID,
@@ -88,9 +92,10 @@ exports.handler = async (event) => {
           TagSpecifications: [{
             ResourceType: 'instance',
             Tags: [
-              { Key: 'Name',        Value: `greendotball-${campaignId}-batch-${batchNum}` },
+              { Key: 'Name',        Value: instanceName },
               { Key: 'CampaignId',  Value: campaignId },
               { Key: 'BatchNum',    Value: String(batchNum) },
+              { Key: 'FirstJobId',  Value: firstJobId },
               { Key: 'JobIds',      Value: jobIdsCsv.slice(0, 255) }, // tag limit 255 chars
               { Key: 'Project',     Value: 'greendotball' },
               { Key: 'LaunchedAt',  Value: batchTimestamp }
@@ -101,7 +106,9 @@ exports.handler = async (event) => {
         const instanceId = result.Instances[0].InstanceId;
         launchedInstances.push({
           instanceId,
+          instanceName,
           batchNum,
+          firstJobId,
           jobBatch: `${batch[0]}–${batch[batch.length - 1]}`,
           jobCount: batch.length,
           status:   'pending'

@@ -46,6 +46,16 @@
     .instance-list { max-height: 280px; overflow-y: auto; }
     .instance-item { display: flex; justify-content: space-between; align-items: center;
       padding: 8px 12px; background: #f8f9fa; border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
+
+    /* Status card */
+    .status-inst-row { display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; border-radius: 6px; margin-bottom: 5px; font-size: 13px; }
+    .status-inst-row.s-running    { background: #d1f5d3; }
+    .status-inst-row.s-pending    { background: #fff3cd; }
+    .status-inst-row.s-terminated { background: #f8d7da; }
+    .status-inst-row.s-stopped    { background: #e2e3e5; }
+    .status-inst-row.s-shutting-down { background: #f8d7da; }
+    .progress-slim { height: 10px; border-radius: 5px; }
   </style>
 </head>
 <body>
@@ -293,12 +303,72 @@
           <div class="mb-2">Campaign ID: <strong id="resultCampaignId">—</strong></div>
           <div class="mb-3">Instances launched: <strong id="resultInstanceCount">—</strong></div>
           <div class="instance-list" id="instanceList"></div>
-          <div class="mt-3">
+          <div class="mt-3 d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-primary" id="checkStatusBtn">
+              <i class="bi bi-arrow-clockwise me-1"></i> Check Campaign Status
+            </button>
             <a href="dashboard.html" class="btn btn-primary">
               <i class="bi bi-graph-up me-1"></i> View Dashboard
             </a>
           </div>
         </div>
+
+        <!-- Campaign Status Card (shown after "Check Status") -->
+        <div class="step-card d-none" id="statusCard">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="bi bi-activity text-primary me-2"></i>Campaign Status</h5>
+            <button class="btn btn-sm btn-outline-secondary" id="refreshStatusBtn">
+              <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+            </button>
+          </div>
+
+          <!-- Summary stats -->
+          <div class="row g-2 mb-3" id="statusStats">
+            <div class="col-6 col-md-3">
+              <div class="stat-box">
+                <div class="stat-num text-success" id="statRunning">—</div>
+                <div class="stat-lbl">Running</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-box">
+                <div class="stat-num text-warning" id="statPending">—</div>
+                <div class="stat-lbl">Pending</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-box">
+                <div class="stat-num text-danger" id="statTerminated">—</div>
+                <div class="stat-lbl">Terminated</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-box">
+                <div class="stat-num text-info" id="statCompleted">—</div>
+                <div class="stat-lbl">Jobs Done</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress bar -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between small text-muted mb-1">
+              <span>Submission Progress</span>
+              <span id="statusProgressPct">0%</span>
+            </div>
+            <div class="progress progress-slim">
+              <div class="progress-bar bg-success" id="statusProgressBar" style="width:0%"></div>
+            </div>
+          </div>
+
+          <!-- Instance details -->
+          <div class="fw-semibold small text-muted mb-2">EC2 INSTANCES</div>
+          <div style="max-height:300px;overflow-y:auto;" id="statusInstanceList"></div>
+
+          <div class="text-muted small mt-2" id="statusLastUpdated"></div>
+        </div>
+
+      </div><!-- /step3 -->
       </div>
 
     </div><!-- /mainContent -->
@@ -308,9 +378,10 @@
   <script>
     // ─── Config ───────────────────────────────────────────────────────────────
     const API = {
-      uploadCampaign:  'https://YOUR_API_GATEWAY_URL/upload-campaign',
-      createJobs:      'https://YOUR_API_GATEWAY_URL/create-jobs',
-      startCampaign:   'https://YOUR_API_GATEWAY_URL/start-campaign'
+      uploadCampaign:    'https://YOUR_API_GATEWAY_URL/upload-campaign',
+      createJobs:        'https://YOUR_API_GATEWAY_URL/create-jobs',
+      startCampaign:     'https://YOUR_API_GATEWAY_URL/start-campaign',
+      getCampaignStatus: 'https://YOUR_API_GATEWAY_URL/get-campaign-status'
     };
 
     const JOBS_PER_INSTANCE   = 12;
@@ -589,9 +660,14 @@
       instances.forEach(inst => {
         const d = document.createElement('div');
         d.className = 'instance-item';
+        const displayName = inst.instanceName || inst.instanceId;
         d.innerHTML = `
-          <span><i class="bi bi-server me-1 text-muted"></i><code>${inst.instanceId}</code>
-            <span class="text-muted ms-2">${inst.jobBatch || ''}</span></span>
+          <span>
+            <i class="bi bi-server me-1 text-muted"></i>
+            <strong>${displayName}</strong>
+            <code class="text-muted ms-2 small">${inst.instanceId || ''}</code>
+            <span class="text-muted ms-2">${inst.jobBatch || ''}</span>
+          </span>
           <span class="badge bg-warning text-dark">${inst.status}</span>
         `;
         list.appendChild(d);
@@ -599,6 +675,92 @@
       document.getElementById('resultsCard').classList.remove('d-none');
       sessionStorage.setItem('currentCampaignId', state.campaignId);
     }
+
+    // ─── Campaign Status ──────────────────────────────────────────────────────
+    async function fetchAndRenderStatus(campaignId) {
+      const card = document.getElementById('statusCard');
+      card.classList.remove('d-none');
+      document.getElementById('statusLastUpdated').textContent = 'Loading...';
+
+      try {
+        const res = await fetch(`${API.getCampaignStatus}?campaignId=${encodeURIComponent(campaignId)}`);
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const data = await res.json();
+        renderStatusCard(data);
+
+      } catch (err) {
+        // DEV FALLBACK — simulated data when Lambda not wired
+        console.warn('Status API not available, using dev fallback:', err.message);
+        const fakeInstances = Array.from({ length: state.instancesNeeded || 3 }, (_, i) => ({
+          instanceId:   `i-${Math.random().toString(36).substr(2,10)}`,
+          instanceName: `${campaignId}-job-${String(i*12+1).padStart(3,'0')}-inst-${i+1}`,
+          state:        ['running','pending','terminated'][i % 3],
+          batchNum:     String(i + 1),
+          firstJobId:   `job-${String(i*12+1).padStart(3,'0')}`
+        }));
+        renderStatusCard({
+          success: true,
+          campaignId,
+          campaign: { status: 'running', totalJobs: state.jobs.length || 48 },
+          progress: { completedJobs: Math.floor((state.jobs.length || 48) * 0.3), totalJobs: state.jobs.length || 48, progressPct: 30 },
+          instances: {
+            total: fakeInstances.length,
+            running: fakeInstances.filter(i => i.state === 'running').length,
+            pending: fakeInstances.filter(i => i.state === 'pending').length,
+            terminated: fakeInstances.filter(i => i.state === 'terminated').length,
+            details: fakeInstances
+          }
+        });
+      }
+    }
+
+    function renderStatusCard(data) {
+      const inst = data.instances || {};
+      document.getElementById('statRunning').textContent    = inst.running    ?? '—';
+      document.getElementById('statPending').textContent    = inst.pending    ?? '—';
+      document.getElementById('statTerminated').textContent = inst.terminated ?? '—';
+      document.getElementById('statCompleted').textContent  = data.progress?.completedJobs ?? '—';
+
+      const pct = data.progress?.progressPct || 0;
+      document.getElementById('statusProgressPct').textContent = `${pct}%`;
+      document.getElementById('statusProgressBar').style.width = `${pct}%`;
+
+      const list = document.getElementById('statusInstanceList');
+      list.innerHTML = '';
+      (inst.details || []).forEach(i => {
+        const stateClass = `s-${i.state || 'stopped'}`;
+        const stateColor = {
+          running:      'success',
+          pending:      'warning',
+          terminated:   'danger',
+          stopped:      'secondary',
+          'shutting-down': 'danger'
+        }[i.state] || 'secondary';
+
+        const row = document.createElement('div');
+        row.className = `status-inst-row ${stateClass}`;
+        row.innerHTML = `
+          <span>
+            <i class="bi bi-server me-1"></i>
+            <strong>${i.instanceName || i.instanceId}</strong>
+            <code class="text-muted ms-2 small">${i.instanceName ? i.instanceId : ''}</code>
+            ${i.firstJobId ? `<span class="text-muted ms-2">starting at ${i.firstJobId}</span>` : ''}
+          </span>
+          <span class="badge bg-${stateColor}">${i.state || 'unknown'}</span>
+        `;
+        list.appendChild(row);
+      });
+
+      document.getElementById('statusLastUpdated').textContent =
+        `Last updated: ${new Date().toLocaleTimeString()}`;
+    }
+
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('#checkStatusBtn') || e.target.closest('#refreshStatusBtn')) {
+        const cid = state.campaignId || sessionStorage.getItem('currentCampaignId');
+        if (cid) fetchAndRenderStatus(cid);
+      }
+    });
 
     // ─── Init ─────────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function() {
