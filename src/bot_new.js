@@ -231,7 +231,8 @@ class GreenDotBallJobBot {
       logger.info('='.repeat(60));
 
     } catch (err) {
-      logger.error('Fatal bot error:', err.message);
+      logger.error('Fatal bot error:', err.message || err.code || String(err));
+      logger.error('Stack:', err.stack || 'no stack');
       throw err;
     } finally {
       await this.cleanup();
@@ -270,7 +271,7 @@ async function main() {
     await bot.run();
     process.exit(0);
   } catch (err) {
-    logger.error('Fatal:', err.message);
+    logger.error('Fatal:', err.message || err.code || String(err));
     process.exit(1);
   }
 }
