@@ -61,30 +61,33 @@ for PHONE in "${PHONES[@]}"; do
   JOB_ID=$(printf "job-%03d" $JOB_NUM)
   JOB_FILE="/tmp/${JOB_ID}.json"
 
-  # Build image list JSON array
-  IMG_JSON="["
+  # Build pairs[] array — matches exact schema that bot_new.js reads:
+  # { id, phoneNumber, imagePath (S3 key) }
+  PAIRS_JSON="["
   FIRST=true
+  PAIR_IDX=1
   for img in "${IMAGES[@]}"; do
     FILENAME=$(basename "$img")
-    if [ "$FIRST" = true ]; then FIRST=false; else IMG_JSON="${IMG_JSON},"; fi
-    IMG_JSON="${IMG_JSON}\"campaigns/${CAMPAIGN_ID}/images/${FILENAME}\""
+    S3_KEY="campaigns/${CAMPAIGN_ID}/images/${FILENAME}"
+    if [ "$FIRST" = true ]; then FIRST=false; else PAIRS_JSON="${PAIRS_JSON},"; fi
+    PAIRS_JSON="${PAIRS_JSON}{\"id\":\"${JOB_ID}-pair-${PAIR_IDX}\",\"phoneNumber\":\"${PHONE}\",\"imagePath\":\"${S3_KEY}\"}"
+    PAIR_IDX=$((PAIR_IDX + 1))
   done
-  IMG_JSON="${IMG_JSON}]"
+  PAIRS_JSON="${PAIRS_JSON}]"
 
   cat > "$JOB_FILE" <<EOF
 {
   "jobId": "${JOB_ID}",
   "campaignId": "${CAMPAIGN_ID}",
   "phone": "${PHONE}",
-  "images": ${IMG_JSON},
-  "submissions": ${#IMAGES[@]},
-  "status": "pending",
-  "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  "imageCount": ${#IMAGES[@]},
+  "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "pairs": ${PAIRS_JSON}
 }
 EOF
 
   aws s3 cp "$JOB_FILE" "s3://${S3_BUCKET}/campaigns/${CAMPAIGN_ID}/jobs/${JOB_ID}.json" --region $REGION
-  echo "      ✅ Uploaded ${JOB_ID} (phone: ${PHONE}, images: ${#IMAGES[@]})"
+  echo "      ✅ Uploaded ${JOB_ID} (phone: ${PHONE}, pairs: ${#IMAGES[@]})"
 
   if [ -z "$ALL_JOB_IDS" ]; then ALL_JOB_IDS="$JOB_ID"; else ALL_JOB_IDS="${ALL_JOB_IDS},${JOB_ID}"; fi
   JOB_NUM=$((JOB_NUM + 1))
