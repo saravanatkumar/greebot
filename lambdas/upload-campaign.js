@@ -23,8 +23,10 @@ function generateCampaignId(name) {
   const day  = String(now.getDate()).padStart(2, '0');
   const yr   = now.getFullYear();
   const slug = name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 12);
-  const seq  = String(now.getTime()).slice(-4);
-  return `${mon}-${day}-${yr}-${slug}-${seq}`;
+  const hh   = String(now.getHours()).padStart(2, '0');
+  const mm   = String(now.getMinutes()).padStart(2, '0');
+  const ss   = String(now.getSeconds()).padStart(2, '0');
+  return `${mon}-${day}-${yr}-${slug}-${hh}${mm}${ss}`;
 }
 
 function parseMultipart(event) {
