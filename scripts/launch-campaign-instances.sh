@@ -14,7 +14,7 @@
 set -e
 
 # ── Config ────────────────────────────────────────────────────────────────────
-AMI_ID="ami-0453f8f8df25935ce"          # greendotball-bot-v2 (built 2026-04-04)
+AMI_ID="ami-0266c7c09a51d812e"          # greendotball-bot-v3 (systemd auto-run, 2026-04-04)
 INSTANCE_TYPE="t3.small"
 KEY_NAME="greendotball-bot-key-v2"
 SECURITY_GROUP_NAME="greendotball-bot-sg"
