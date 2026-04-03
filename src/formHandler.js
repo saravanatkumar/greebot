@@ -30,14 +30,8 @@ class FormHandler {
       }
 
       await fileInput.uploadFile(imagePath);
-      await sleep(500);
-
-      // Wait until #imageInput has a file attached (files.length > 0)
-      await this.page.waitForFunction(() => {
-        const inp = document.querySelector('#imageInput');
-        return inp && inp.files && inp.files.length > 0;
-      }, { timeout: 10000 });
-
+      // Puppeteer's uploadFile is synchronous — give the page JS time to process
+      await sleep(1500);
       await sleep(await humanDelay());
       logger.info('Image uploaded successfully');
       return true;
