@@ -12,7 +12,7 @@ const KEY_NAME        = 'greendotball-bot-key-v2';
 const SECURITY_GROUP  = 'greendotball-bot-sg';
 const IAM_ROLE        = 'EC2-GreenDotBall-S3-Access';
 const DEFAULT_REGION  = 'ap-south-1';
-const JOBS_PER_BATCH  = 12;
+const JOBS_PER_BATCH  = 1;   // 1 job per instance (1 job = 10 phones × 10 images = 100 submissions)
 
 const corsHeaders = {
   'Content-Type': 'application/json',

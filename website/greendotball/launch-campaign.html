@@ -116,15 +116,37 @@
             <div class="form-text" id="phoneCountHint">0 numbers entered</div>
           </div>
 
-          <div class="mb-4">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Image Source</label>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="imageSource" id="imgSrcUpload" value="upload" checked />
+                <label class="form-check-label" for="imgSrcUpload">Upload Images (.zip)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="imageSource" id="imgSrcPool" value="pool" />
+                <label class="form-check-label" for="imgSrcPool">Use Image Pool (S3)</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4" id="zipUploadSection">
             <label class="form-label fw-semibold">Images <span class="text-muted fw-normal">(.zip file)</span></label>
             <input type="file" class="form-control" id="imagesZip" accept=".zip" />
             <div class="form-text">Zip all your images into one file and upload here.</div>
           </div>
 
+          <div class="mb-4 d-none" id="poolInfoSection">
+            <div class="alert alert-info py-2 mb-0">
+              <i class="bi bi-images me-1"></i>
+              Images will be randomly picked from the shared S3 pool: <code>s3://greendotball-bot-data/images-pool/</code><br>
+              <span class="text-muted small">No upload needed. Make sure the pool is populated using <code>scripts/upload-image-pool.sh</code>.</span>
+            </div>
+          </div>
+
           <div class="alert alert-warning py-2 mb-4">
             <i class="bi bi-exclamation-triangle me-1"></i>
-            <strong>Note:</strong> Each job = 1 phone × 10 images. Uploading will generate a Campaign ID and store your data in S3.
+            <strong>Note:</strong> Each job = 10 phones × 10 images = 100 submissions. 1 EC2 instance per job.
           </div>
 
           <button class="btn btn-primary px-4" id="uploadBtn">
@@ -451,36 +473,48 @@
       document.getElementById('phoneCountHint').textContent = `${lines.length} number${lines.length===1?'':'s'} entered`;
     });
 
+    // ─── Image source toggle ────────────────────────────────────────────────
+    document.querySelectorAll('input[name="imageSource"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        const isPool = this.value === 'pool';
+        document.getElementById('zipUploadSection').classList.toggle('d-none', isPool);
+        document.getElementById('poolInfoSection').classList.toggle('d-none', !isPool);
+      });
+    });
+
     document.getElementById('uploadBtn').addEventListener('click', async function() {
-      const name   = document.getElementById('campaignName').value.trim();
-      const phones = document.getElementById('phoneInput').value.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
-      const file   = document.getElementById('imagesZip').files[0];
+      const name        = document.getElementById('campaignName').value.trim();
+      const phones      = document.getElementById('phoneInput').value.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+      const file        = document.getElementById('imagesZip').files[0];
+      const imageSource = document.querySelector('input[name="imageSource"]:checked').value;
 
       if (!name)           return alert('Please enter a campaign name.');
       if (phones.length<1) return alert('Please enter at least one phone number.');
-      if (!file)           return alert('Please select a .zip file of images.');
+      if (imageSource === 'upload' && !file) return alert('Please select a .zip file of images, or switch to Image Pool.');
 
       const invalid = phones.filter(p => !/^\d{10}$/.test(p));
       if (invalid.length) return alert(`Invalid phone numbers (must be 10 digits):\n${invalid.slice(0,5).join('\n')}`);
 
       document.getElementById('uploadProgress').classList.remove('d-none');
-      document.getElementById('uploadStatus').textContent = 'Uploading images to S3...';
+      document.getElementById('uploadStatus').textContent = imageSource === 'pool' ? 'Saving phones to S3...' : 'Uploading images to S3...';
       setBtn('uploadBtn', true, '<i class="bi bi-cloud-upload me-1"></i> Uploading...');
 
       try {
         const formData = new FormData();
         formData.append('campaignName', name);
         formData.append('phoneNumbers', phones.join('\n'));
-        formData.append('imagesZip', file);
+        formData.append('imageSource',  imageSource);
+        if (imageSource === 'upload') formData.append('imagesZip', file);
 
         const res = await fetch(API.uploadCampaign, { method: 'POST', body: formData });
         if (!res.ok) throw new Error(`Server error: ${res.status}`);
         const data = await res.json();
 
-        state.campaignId  = data.campaignId;
-        state.phoneCount  = data.phoneCount;
-        state.imageCount  = data.imageCount;
-        state.imageFolder = data.imageFolder;
+        state.campaignId   = data.campaignId;
+        state.phoneCount   = data.phoneCount;
+        state.imageCount   = data.imageCount;
+        state.imageFolder  = data.imageFolder;
+        state.imageSource  = data.imageSource;
 
         sessionStorage.setItem('currentCampaignId', state.campaignId);
         moveToStep2();
@@ -490,8 +524,9 @@
         console.warn('API not available, using dev fallback:', err.message);
         state.campaignId  = generateCampaignId(name);
         state.phoneCount  = phones.length;
-        state.imageCount  = 80; // simulated
-        state.imageFolder = `campaigns/${state.campaignId}/images/`;
+        state.imageCount  = imageSource === 'pool' ? 100 : 10;
+        state.imageFolder = imageSource === 'pool' ? 'images-pool/' : `campaigns/${state.campaignId}/images/`;
+        state.imageSource = imageSource;
         sessionStorage.setItem('currentCampaignId', state.campaignId);
         moveToStep2();
       } finally {
@@ -502,8 +537,8 @@
 
     function moveToStep2() {
       document.getElementById('s2PhoneCount').textContent  = state.phoneCount;
-      document.getElementById('s2ImageCount').textContent  = state.imageCount;
-      document.getElementById('s2TotalCombo').textContent  = state.phoneCount * state.imageCount;
+      document.getElementById('s2ImageCount').textContent  = state.imageSource === 'pool' ? 'Pool' : state.imageCount;
+      document.getElementById('s2TotalCombo').textContent  = state.imageSource === 'pool' ? `${state.phoneCount} phones` : state.phoneCount * state.imageCount;
       document.getElementById('s2CampaignId').textContent  = state.campaignId;
       document.getElementById('s2ImagesPath').textContent  = state.imageFolder;
       setStep(2);
@@ -520,8 +555,10 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            campaignId:    state.campaignId,
-            imagesPerJob:  IMAGES_PER_JOB
+            campaignId:   state.campaignId,
+            imagesPerJob: IMAGES_PER_JOB,
+            phonesPerJob: 10,
+            imageSource:  state.imageSource || 'upload'
           })
         });
         if (!res.ok) throw new Error(`Server error: ${res.status}`);

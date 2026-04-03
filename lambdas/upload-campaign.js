@@ -72,23 +72,20 @@ exports.handler = async (event) => {
   }
 
   try {
-    const parts       = parseMultipart(event);
+    const parts        = parseMultipart(event);
     const campaignName = parts.campaignName?.content.toString().trim();
     const phoneText    = parts.phoneNumbers?.content.toString().trim();
     const zipContent   = parts.imagesZip?.content;
+    const imageSource  = (parts.imageSource?.content.toString().trim()) || 'upload';
 
     if (!campaignName) throw new Error('Missing campaignName');
     if (!phoneText)    throw new Error('Missing phoneNumbers');
-    if (!zipContent)   throw new Error('Missing imagesZip');
+    if (imageSource === 'upload' && !zipContent) throw new Error('Missing imagesZip (required when imageSource=upload)');
 
     // Validate + collect phone numbers
-    const phones = phoneText.split('\n')
-      .map(p => p.trim())
-      .filter(p => p.length > 0);
-
+    const phones = phoneText.split('\n').map(p => p.trim()).filter(p => p.length > 0);
     const validPhones   = phones.filter(p => /^\d{10}$/.test(p));
     const invalidPhones = phones.filter(p => !/^\d{10}$/.test(p));
-
     if (validPhones.length === 0) throw new Error('No valid 10-digit phone numbers found');
 
     // Generate campaign ID
@@ -103,42 +100,41 @@ exports.handler = async (event) => {
       ContentType: 'text/plain'
     }).promise();
 
-    // Unzip images and upload each to S3
-    const zip        = new AdmZip(zipContent);
-    const zipEntries = zip.getEntries();
-    const uploadedImages = [];
+    // ── Upload images only if imageSource = 'upload' ─────────────────────────
+    let uploadedImages = [];
+    if (imageSource === 'upload') {
+      const zip        = new AdmZip(zipContent);
+      const zipEntries = zip.getEntries();
 
-    for (const entry of zipEntries) {
-      if (entry.isDirectory) continue;
+      for (const entry of zipEntries) {
+        if (entry.isDirectory) continue;
+        const fname = entry.name.toLowerCase();
+        const ext   = '.' + fname.split('.').pop();
+        if (!ALLOWED_EXTS.includes(ext)) continue;
 
-      const fname = entry.name.toLowerCase();
-      const ext   = '.' + fname.split('.').pop();
-      if (!ALLOWED_EXTS.includes(ext)) continue;
+        const imgBuffer = entry.getData();
+        await s3.putObject({
+          Bucket:      S3_BUCKET,
+          Key:         `${imageFolder}${entry.name}`,
+          Body:        imgBuffer,
+          ContentType: `image/${ext.slice(1)}`
+        }).promise();
+        uploadedImages.push(entry.name);
+      }
 
-      const imgBuffer = entry.getData();
-      const s3Key     = `${imageFolder}${entry.name}`;
-
-      await s3.putObject({
-        Bucket:      S3_BUCKET,
-        Key:         s3Key,
-        Body:        imgBuffer,
-        ContentType: `image/${ext.slice(1)}`
-      }).promise();
-
-      uploadedImages.push(entry.name);
+      if (uploadedImages.length === 0) throw new Error('No valid images found in zip (jpg/jpeg/png/gif/webp)');
     }
-
-    if (uploadedImages.length === 0) throw new Error('No valid images found in zip (jpg/jpeg/png/gif/webp)');
 
     // Save campaign metadata
     const metadata = {
       campaignId,
       campaignName,
-      createdAt:    new Date().toISOString(),
-      phoneCount:   validPhones.length,
-      imageCount:   uploadedImages.length,
-      imageFolder,
-      status:       'uploaded'
+      imageSource,
+      createdAt:  new Date().toISOString(),
+      phoneCount: validPhones.length,
+      imageCount: imageSource === 'upload' ? uploadedImages.length : 0,
+      imageFolder: imageSource === 'upload' ? imageFolder : 'images-pool/',
+      status:     'uploaded'
     };
 
     await s3.putObject({
@@ -155,7 +151,7 @@ exports.handler = async (event) => {
         const existing = await s3.getObject({ Bucket: S3_BUCKET, Key: 'campaigns/index.json' }).promise();
         index = JSON.parse(existing.Body.toString());
       } catch (_) {}
-      index.campaigns.unshift({ campaignId, campaignName, createdAt: metadata.createdAt, phoneCount: validPhones.length, imageCount: uploadedImages.length });
+      index.campaigns.unshift({ campaignId, campaignName, createdAt: metadata.createdAt, phoneCount: validPhones.length, imageSource });
       await s3.putObject({
         Bucket: S3_BUCKET, Key: 'campaigns/index.json',
         Body: JSON.stringify(index, null, 2), ContentType: 'application/json'
@@ -166,14 +162,15 @@ exports.handler = async (event) => {
       statusCode: 200,
       headers: corsHeaders,
       body: JSON.stringify({
-        success:        true,
+        success:      true,
         campaignId,
         campaignName,
-        phoneCount:     validPhones.length,
-        invalidCount:   invalidPhones.length,
-        imageCount:     uploadedImages.length,
-        imageFolder,
-        images:         uploadedImages
+        imageSource,
+        phoneCount:   validPhones.length,
+        invalidCount: invalidPhones.length,
+        imageCount:   uploadedImages.length,
+        imageFolder:  metadata.imageFolder,
+        images:       uploadedImages
       })
     };
 
