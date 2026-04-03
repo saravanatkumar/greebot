@@ -1,0 +1,5 @@
+# Add your 10-digit phone numbers below, one per line.
+# Lines starting with # are ignored.
+# Example:
+# 9810887396
+# 9810846436

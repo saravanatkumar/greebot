@@ -32,23 +32,31 @@ if [ ! -d "$IMAGE_DIR" ]; then
   exit 1
 fi
 
-IMAGES=($(ls "$IMAGE_DIR"/*.{jpg,jpeg,png,JPG,JPEG,PNG,gif,webp} 2>/dev/null))
+# Collect images with find (null-delimited to handle spaces in filenames)
+TOTAL=0
+while IFS= read -r -d '' img; do
+  TOTAL=$((TOTAL + 1))
+done < <(find "$IMAGE_DIR" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.webp' \) -print0 2>/dev/null)
 
-if [ ${#IMAGES[@]} -eq 0 ]; then
+if [ "$TOTAL" -eq 0 ]; then
   echo "❌ ERROR: No images found in $IMAGE_DIR"
   exit 1
 fi
 
-echo "Found ${#IMAGES[@]} images to upload..."
+echo "Found $TOTAL images to upload..."
 echo ""
 
 COUNT=0
-for img in "${IMAGES[@]}"; do
-  FILENAME=$(basename "$img")
-  aws s3 cp "$img" "s3://${S3_BUCKET}/${POOL_PREFIX}/${FILENAME}" --region $REGION
+while IFS= read -r -d '' img; do
+  RAW=$(basename "$img")
+  # Strip leading 'Copy of ' or 'Copy ' (case-insensitive)
+  CLEAN=$(echo "$RAW" | sed -E 's/^[Cc]opy of //;s/^[Cc]opy //')
+  # Replace spaces with underscores
+  CLEAN=$(echo "$CLEAN" | tr ' ' '_')
+  aws s3 cp "$img" "s3://${S3_BUCKET}/${POOL_PREFIX}/${CLEAN}" --region $REGION
   COUNT=$((COUNT + 1))
-  echo "  ✅ [$COUNT/${#IMAGES[@]}] $FILENAME"
-done
+  echo "  ✅ [$COUNT/$TOTAL] $RAW → $CLEAN"
+done < <(find "$IMAGE_DIR" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.webp' \) -print0 2>/dev/null)
 
 echo ""
 echo "=================================================="
