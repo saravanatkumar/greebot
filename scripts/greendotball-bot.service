@@ -1,0 +1,20 @@
+[Unit]
+Description=GreenDotBall Job Bot
+After=network-online.target cloud-final.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/opt/greendotball-bot
+ExecStart=/bin/bash /opt/greendotball-bot/scripts/run-job-bot.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=greendotball-bot
+# Give the bot up to 55 minutes before systemd kills it (run-job-bot.sh shuts down at 50 min)
+TimeoutStartSec=3300
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target

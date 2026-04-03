@@ -62,8 +62,8 @@ export JOB_IDS
 # ─── Git pull latest code ─────────────────────────────────────────────────────
 log "Pulling latest code..."
 cd "$BOT_DIR"
-git fetch origin 2>&1 | tee -a "$LOG_FILE"
-git reset --hard origin/main 2>&1 | tee -a "$LOG_FILE"
+git fetch origin design-rethink 2>&1 | tee -a "$LOG_FILE"
+git reset --hard origin/design-rethink 2>&1 | tee -a "$LOG_FILE"
 log "Code updated to: $(git log -1 --format='%h %s')"
 
 # ─── Install dependencies ─────────────────────────────────────────────────────
