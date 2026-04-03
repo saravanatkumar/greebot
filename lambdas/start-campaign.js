@@ -7,7 +7,7 @@ const AWS = require('aws-sdk');
 const s3  = new AWS.S3();
 
 const S3_BUCKET       = 'greendotball-bot-data';
-const AMI_ID          = 'ami-0a39d12e7514ee458'; // Update after new AMI is created
+const AMI_ID          = 'ami-0453f8f8df25935ce'; // greendotball-bot-v2 (2026-04-04)
 const KEY_NAME        = 'greendotball-bot-key-v2';
 const SECURITY_GROUP  = 'greendotball-bot-sg';
 const IAM_ROLE        = 'EC2-GreenDotBall-S3-Access';

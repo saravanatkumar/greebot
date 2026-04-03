@@ -25,6 +25,12 @@ log "========================================"
 log "GreenDotBall Job Bot — EC2 Startup"
 log "========================================"
 
+# ─── Hard 50-minute shutdown timer (background) ───────────────────────────────
+# Ensures instance ALWAYS terminates within 50 min regardless of bot outcome
+( sleep 3000 && log "⏰ 50-min hard limit reached — shutting down" && sudo shutdown -h now ) &
+SHUTDOWN_PID=$!
+log "Auto-shutdown armed: 50 min (PID $SHUTDOWN_PID)"
+
 # Get instance metadata
 INSTANCE_ID=$(curl -sf http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || echo "unknown")
 log "Instance ID : $INSTANCE_ID"
@@ -90,7 +96,8 @@ fi
 
 log "All done at $(date)"
 
-# ─── Auto-shutdown ────────────────────────────────────────────────────────────
-log "Instance will shut down in 60 seconds..."
-sleep 60
+# ─── Shutdown: cancel background timer and shut down now ─────────────────────
+kill "$SHUTDOWN_PID" 2>/dev/null || true
+log "Shutting down instance now..."
+sleep 10
 sudo shutdown -h now
