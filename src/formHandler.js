@@ -2,15 +2,15 @@ const logger = require('./utils/logger');
 const { sleep, humanDelay } = require('./utils/helpers');
 
 const SELECTORS = {
-  fileInput: '#fileInput',
-  phoneInput: 'input.mobile-number',
+  fileInput:    '#imageInput',
+  phoneInput:   '#phoneInput',
   termsCheckbox: '#termsCheckbox',
-  slideButton: '#slideButton',
-  slideTrack: '#slideTrack',
-  uploadConfirmation: '.upload-btn-wrapper .btn-text',
-  successModal: '#successModal.active',
-  modalTitle: '.modal-title',
+  slideKnob:    '#knob',
+  slideTrack:   '#slider',
+  successModal: '#successModal',
+  modalTitle:   '.modal-title',
   modalMessage: '.modal-message',
+  modalClose:   '.modal-close-btn',
   errorMessage: '#errorMessage'
 };
 
@@ -23,20 +23,22 @@ class FormHandler {
   async uploadImage(imagePath) {
     try {
       logger.info('Uploading image...');
-      
+
       const fileInput = await this.page.$(SELECTORS.fileInput);
       if (!fileInput) {
-        throw new Error('File input not found');
+        throw new Error('File input not found (#imageInput)');
       }
 
       await fileInput.uploadFile(imagePath);
-      await sleep(await humanDelay());
+      await sleep(500);
 
+      // Wait until #imageInput has a file attached (files.length > 0)
       await this.page.waitForFunction(() => {
-        const btn = document.querySelector('.upload-btn-wrapper .btn-text');
-        return btn && btn.textContent.includes('IMAGE UPLOADED');
+        const inp = document.querySelector('#imageInput');
+        return inp && inp.files && inp.files.length > 0;
       }, { timeout: 10000 });
 
+      await sleep(await humanDelay());
       logger.info('Image uploaded successfully');
       return true;
     } catch (error) {
@@ -119,15 +121,15 @@ class FormHandler {
   async slideWithMouse() {
     try {
       logger.info('Using mouse drag strategy...');
-      
-      await this.page.waitForSelector(SELECTORS.slideButton, { timeout: 5000 });
+
+      await this.page.waitForSelector(SELECTORS.slideKnob,  { timeout: 5000 });
       await this.page.waitForSelector(SELECTORS.slideTrack, { timeout: 5000 });
 
-      const slideButton = await this.page.$(SELECTORS.slideButton);
-      const slideTrack = await this.page.$(SELECTORS.slideTrack);
+      const slideButton = await this.page.$(SELECTORS.slideKnob);
+      const slideTrack  = await this.page.$(SELECTORS.slideTrack);
 
       const buttonBox = await slideButton.boundingBox();
-      const trackBox = await slideTrack.boundingBox();
+      const trackBox  = await slideTrack.boundingBox();
 
       if (!buttonBox || !trackBox) {
         throw new Error('Could not get bounding boxes for slide elements');
@@ -169,27 +171,25 @@ class FormHandler {
   async slideWithJavaScript() {
     try {
       logger.info('Using JavaScript injection strategy...');
-      
+
       await this.page.evaluate(() => {
-        const slideButton = document.getElementById('slideButton');
-        const slideTrack = document.getElementById('slideTrack');
-        
+        const slideButton = document.getElementById('knob');
+        const slideTrack  = document.getElementById('slider');
+
         if (!slideButton || !slideTrack) {
-          throw new Error('Slide elements not found');
+          throw new Error('Slide elements not found (#knob / #slider)');
         }
 
-        const trackWidth = slideTrack.offsetWidth;
+        const trackWidth  = slideTrack.offsetWidth;
         const buttonWidth = slideButton.offsetWidth;
-        const maxSlide = trackWidth - buttonWidth - 10;
-        
-        slideButton.style.transform = `translateX(${maxSlide}px)`;
+        const maxSlide    = trackWidth - buttonWidth - 10;
+
+        slideButton.style.transform  = `translateX(${maxSlide}px)`;
         slideButton.style.transition = 'all 0.3s ease';
         slideTrack.classList.add('completed');
-        
+
         const slideText = slideTrack.querySelector('.slide-text');
-        if (slideText) {
-          slideText.style.opacity = 0;
-        }
+        if (slideText) slideText.style.opacity = 0;
       });
 
       logger.info('JavaScript injection completed');
@@ -212,25 +212,29 @@ class FormHandler {
   async waitForResponse() {
     try {
       logger.info('Waiting for submission response...');
-      
-      await this.page.waitForSelector(SELECTORS.successModal, { 
-        timeout: 60000
-      });
+
+      // Wait until #successModal becomes visible (display != none, not relying on .active class)
+      await this.page.waitForFunction(() => {
+        const modal = document.querySelector('#successModal');
+        if (!modal) return false;
+        const style = window.getComputedStyle(modal);
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+      }, { timeout: 60000 });
 
       await sleep(2000);
 
-      const modalTitle = await this.page.$eval(SELECTORS.modalTitle, el => el.textContent);
-      const modalMessage = await this.page.$eval(SELECTORS.modalMessage, el => el.innerHTML);
+      const modalTitle   = await this.page.$eval(SELECTORS.modalTitle,   el => el.textContent).catch(() => '');
+      const modalMessage = await this.page.$eval(SELECTORS.modalMessage, el => el.innerHTML).catch(() => '');
 
       const isSuccess = modalTitle.toLowerCase().includes('success');
 
       if (isSuccess) {
         logger.info('✓ Submission successful!');
-        logger.info(`Message: ${modalMessage.replace(/<[^>]*>/g, '')}`);
+        logger.info(`Message: ${modalMessage.replace(/<[^>]*>/g, '').trim()}`);
         return { success: true, message: modalMessage };
       } else {
         logger.warn('✗ Submission failed');
-        logger.warn(`Error: ${modalMessage.replace(/<[^>]*>/g, '')}`);
+        logger.warn(`Title: ${modalTitle} | Message: ${modalMessage.replace(/<[^>]*>/g, '').trim()}`);
         return { success: false, message: modalMessage };
       }
     } catch (error) {
@@ -241,10 +245,10 @@ class FormHandler {
 
   async closeModal() {
     try {
-      const closeButton = await this.page.$('.modal-close');
+      const closeButton = await this.page.$(SELECTORS.modalClose);
       if (closeButton) {
         await closeButton.click();
-        await sleep(500);
+        await sleep(800);
         logger.info('Modal closed');
       }
     } catch (error) {
