@@ -7,7 +7,7 @@ const AWS = require('aws-sdk');
 const s3  = new AWS.S3();
 
 const S3_BUCKET       = 'greendotball-bot-data';
-const AMI_ID          = 'ami-0266c7c09a51d812e'; // greendotball-bot-v3 (systemd auto-run, 2026-04-04)
+const AMI_ID          = 'ami-062031225a90c8e48'; // greendotball-bot-v4 (working submissions, 2026-04-04)
 const KEY_NAME        = 'greendotball-bot-key-v2';
 const SECURITY_GROUP  = 'greendotball-bot-sg';
 const IAM_ROLE        = 'EC2-GreenDotBall-S3-Access';
