@@ -111,20 +111,20 @@ class GreenDotBallJobBot {
     await this.page.goto(this.config.targetUrl, {
       waitUntil: 'networkidle2', timeout: this.config.timeout || 30000
     });
-    await sleep(2000);
+    await sleep(1000);
     this.formHandler = new FormHandler(this.page, this.config);
   }
 
   // ─── Submission ───────────────────────────────────────────────────────────
   async submitForm(phoneNumber, imagePath) {
-    await this.formHandler.uploadImage(imagePath);       await sleep(500);
-    await this.formHandler.enterPhoneNumber(phoneNumber); await sleep(500);
-    await this.formHandler.acceptTerms();                await sleep(500);
-    await this.formHandler.performSlideSubmit();         await sleep(1000);
+    await this.formHandler.uploadImage(imagePath);       await sleep(300);
+    await this.formHandler.enterPhoneNumber(phoneNumber); await sleep(300);
+    await this.formHandler.acceptTerms();                await sleep(300);
+    await this.formHandler.performSlideSubmit();         await sleep(500);
     const result = await this.formHandler.waitForResponse();
     if (result.success) this.totalProcessed++;
     await this.formHandler.closeModal();
-    await sleep(2000);
+    await sleep(1000);
     return result;
   }
 

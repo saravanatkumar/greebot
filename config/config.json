@@ -1,10 +1,10 @@
 {
   "targetUrl": "https://greendotball.com/?utm_source=herody&utm_medium=2",
   "headless": true,
-  "slowMo": 100,
+  "slowMo": 0,
   "timeout": 30000,
   "retryAttempts": 1,
-  "delayBetweenSubmissions": 3000,
+  "delayBetweenSubmissions": 1000,
   "randomSelection": true,
   "phoneNumbers": [
     "9911329839",
