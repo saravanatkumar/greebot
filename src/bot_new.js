@@ -184,7 +184,9 @@ class GreenDotBallJobBot {
       });
 
       const icon = result.success ? '✅' : '❌';
-      console.log(`${icon} [${jobId}] #${i+1} | ${maskPhoneNumber(phone)} | ${path.basename(localImg)}`);
+      const msg  = (result.message || '').replace(/<[^>]*>/g, '').trim();
+      console.log(`${icon} [${jobId}] #${i+1} | ${maskPhoneNumber(phone)} | ${path.basename(localImg)} | ${msg}`);
+      logger.info(`[${jobId}] #${i+1} result: success=${result.success} | phone=${maskPhoneNumber(phone)} | image=${path.basename(localImg)} | response="${msg}"`);
 
       if (i < pairs.length - 1) await sleep(this.config.delayBetweenSubmissions || 3000);
     }
