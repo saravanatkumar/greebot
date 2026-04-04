@@ -31,8 +31,15 @@ log "========================================"
 SHUTDOWN_PID=$!
 log "Auto-shutdown armed: 50 min (PID $SHUTDOWN_PID)"
 
-# Get instance metadata
-INSTANCE_ID=$(curl -sf http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || echo "unknown")
+# Get instance metadata (IMDSv2)
+IMDS_TOKEN=$(curl -sf -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 60" 2>/dev/null || echo "")
+if [ -n "$IMDS_TOKEN" ]; then
+  INSTANCE_ID=$(curl -sf -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+    http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || echo "unknown")
+else
+  INSTANCE_ID=$(curl -sf http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || echo "unknown")
+fi
 log "Instance ID : $INSTANCE_ID"
 
 # ─── Read campaign env vars from /etc/greendotball-env (written by EC2 USER_DATA) ─
