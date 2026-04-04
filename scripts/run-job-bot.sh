@@ -35,21 +35,28 @@ log "Auto-shutdown armed: 50 min (PID $SHUTDOWN_PID)"
 INSTANCE_ID=$(curl -sf http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || echo "unknown")
 log "Instance ID : $INSTANCE_ID"
 
-# ─── Read USER_DATA ───────────────────────────────────────────────────────────
-USER_DATA=$(curl -sf http://169.254.169.254/latest/user-data 2>/dev/null || echo "")
+# ─── Read campaign env vars from /etc/greendotball-env (written by EC2 USER_DATA) ─
+ENV_FILE="/etc/greendotball-env"
 
-CAMPAIGN_ID=$(echo "$USER_DATA" | grep "^CAMPAIGN_ID=" | cut -d'=' -f2- | tr -d '[:space:]')
-JOB_IDS=$(echo "$USER_DATA"    | grep "^JOB_IDS="     | cut -d'=' -f2- | tr -d '[:space:]')
-
-if [ -z "$CAMPAIGN_ID" ]; then
-  log "ERROR: CAMPAIGN_ID not found in USER_DATA"
-  log "USER_DATA dump: $USER_DATA"
+if [ -f "$ENV_FILE" ]; then
+  log "Loading env from $ENV_FILE"
+  # shellcheck source=/dev/null
+  source "$ENV_FILE"
+else
+  log "ERROR: $ENV_FILE not found — USER_DATA may not have run yet"
+  log "Expected: CAMPAIGN_ID and JOB_IDS in $ENV_FILE"
   exit 1
 fi
 
-if [ -z "$JOB_IDS" ]; then
-  log "ERROR: JOB_IDS not found in USER_DATA"
-  log "USER_DATA dump: $USER_DATA"
+if [ -z "${CAMPAIGN_ID:-}" ]; then
+  log "ERROR: CAMPAIGN_ID not set in $ENV_FILE"
+  log "File contents: $(cat $ENV_FILE 2>/dev/null || echo '(empty)')"
+  exit 1
+fi
+
+if [ -z "${JOB_IDS:-}" ]; then
+  log "ERROR: JOB_IDS not set in $ENV_FILE"
+  log "File contents: $(cat $ENV_FILE 2>/dev/null || echo '(empty)')"
   exit 1
 fi
 

@@ -91,12 +91,15 @@ for i in "${!JOB_ARRAY[@]}"; do
   INST_NUM=$((i + 1))
   INSTANCE_NAME="${CAMPAIGN_ID}-${JOB_ID}-inst-${INST_NUM}"
 
-  # USER_DATA: plain KEY=value lines — read by run-job-bot.sh via grep
-  # systemd (greendotball-bot.service) starts run-job-bot.sh on boot automatically
+  # USER_DATA: write env vars to /etc/greendotball-env so run-job-bot.sh can source them
   USER_DATA=$(cat <<EOF
 #!/bin/bash
+mkdir -p /etc
+cat > /etc/greendotball-env <<ENVEOF
 CAMPAIGN_ID=${CAMPAIGN_ID}
 JOB_IDS=${JOB_ID}
+ENVEOF
+chmod 644 /etc/greendotball-env
 EOF
 )
 
