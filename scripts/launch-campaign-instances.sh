@@ -91,26 +91,12 @@ for i in "${!JOB_ARRAY[@]}"; do
   INST_NUM=$((i + 1))
   INSTANCE_NAME="${CAMPAIGN_ID}-${JOB_ID}-inst-${INST_NUM}"
 
-  # USER_DATA: sets env vars, runs the bot, auto-shutdown within 50 min
+  # USER_DATA: plain KEY=value lines — read by run-job-bot.sh via grep
+  # systemd (greendotball-bot.service) starts run-job-bot.sh on boot automatically
   USER_DATA=$(cat <<EOF
 #!/bin/bash
-# Hard 50-min shutdown timer (fires even if bot crashes)
-( sleep 3000 && sudo shutdown -h now ) &
-
-export CAMPAIGN_ID=${CAMPAIGN_ID}
-export JOB_IDS=${JOB_ID}
-export AWS_DEFAULT_REGION=${REGION}
-export NODE_ENV=production
-export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
-export HOME=/home/ec2-user
-
-cd /opt/greendotball-bot
-git fetch origin ${GIT_BRANCH} >> /var/log/greendotball-bot/startup.log 2>&1
-git reset --hard origin/${GIT_BRANCH} >> /var/log/greendotball-bot/startup.log 2>&1
-npm install --production >> /var/log/greendotball-bot/startup.log 2>&1
-
-bash scripts/run-job-bot.sh >> /var/log/greendotball-bot/startup.log 2>&1
+CAMPAIGN_ID=${CAMPAIGN_ID}
+JOB_IDS=${JOB_ID}
 EOF
 )
 

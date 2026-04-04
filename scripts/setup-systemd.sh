@@ -35,6 +35,12 @@ fi
 chmod +x "$BOT_DIR/scripts/run-job-bot.sh"
 echo "  ✅ run-job-bot.sh is executable"
 
+# Create log directory owned by ec2-user (systemd runs service as ec2-user)
+mkdir -p /var/log/greendotball-bot
+chown ec2-user:ec2-user /var/log/greendotball-bot
+chmod 755 /var/log/greendotball-bot
+echo "  ✅ Log directory created: /var/log/greendotball-bot (owner: ec2-user)"
+
 # Copy service file to systemd
 cp "$SERVICE_FILE" "$SYSTEMD_DIR/${SERVICE_NAME}.service"
 echo "  ✅ Service file copied to $SYSTEMD_DIR/${SERVICE_NAME}.service"
