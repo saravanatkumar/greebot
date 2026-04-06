@@ -100,6 +100,7 @@ echo ""
 
 ALL_JOB_IDS=""
 JOB_NUM=1
+GLOBAL_IMG_IDX=0   # sequential pointer across ALL pairs — never repeats until pool exhausted
 
 for (( chunk=0; chunk<TOTAL_PHONES; chunk+=PHONES_PER_JOB )); do
   JOB_ID=$(printf "job-%03d" $JOB_NUM)
@@ -111,19 +112,15 @@ for (( chunk=0; chunk<TOTAL_PHONES; chunk+=PHONES_PER_JOB )); do
     PHONE_GROUP+=("${PHONES[$pi]}")
   done
 
-  # Pick IMAGES_PER_JOB images (rotate through pool)
-  IMG_GROUP=()
-  for (( ki=0; ki<IMAGES_PER_JOB; ki++ )); do
-    IDX=$(( ((JOB_NUM - 1) * IMAGES_PER_JOB + ki) % TOTAL_IMAGES ))
-    IMG_GROUP+=("${IMAGES[$IDX]}")
-  done
-
-  # Build pairs JSON (every phone × every image)
+  # Build pairs JSON (every phone × every image, images assigned sequentially 1-by-1)
   PAIRS_JSON="["
   FIRST=true
   PAIR_IDX=1
   for phone in "${PHONE_GROUP[@]}"; do
-    for imgKey in "${IMG_GROUP[@]}"; do
+    for (( ki=0; ki<IMAGES_PER_JOB; ki++ )); do
+      IMG_IDX=$(( GLOBAL_IMG_IDX % TOTAL_IMAGES ))
+      imgKey="${IMAGES[$IMG_IDX]}"
+      GLOBAL_IMG_IDX=$(( GLOBAL_IMG_IDX + 1 ))
       if [ "$FIRST" = true ]; then FIRST=false; else PAIRS_JSON="${PAIRS_JSON},"; fi
       PAIRS_JSON="${PAIRS_JSON}
         {\"id\":\"${JOB_ID}-pair-${PAIR_IDX}\",\"phoneNumber\":\"${phone}\",\"imagePath\":\"${imgKey}\"}"
@@ -133,7 +130,7 @@ for (( chunk=0; chunk<TOTAL_PHONES; chunk+=PHONES_PER_JOB )); do
   PAIRS_JSON="${PAIRS_JSON}
   ]"
 
-  SUBMISSIONS=$((${#PHONE_GROUP[@]} * ${#IMG_GROUP[@]}))
+  SUBMISSIONS=$((${#PHONE_GROUP[@]} * IMAGES_PER_JOB))
 
   # Write job JSON file
   cat > "$JOB_FILE" <<EOF
@@ -142,7 +139,7 @@ for (( chunk=0; chunk<TOTAL_PHONES; chunk+=PHONES_PER_JOB )); do
   "campaignId": "${CAMPAIGN_ID}",
   "imageSource": "pool",
   "phoneCount": ${#PHONE_GROUP[@]},
-  "imageCount": ${#IMG_GROUP[@]},
+  "imageCount": ${IMAGES_PER_JOB},
   "submissions": ${SUBMISSIONS},
   "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "pairs": ${PAIRS_JSON}
