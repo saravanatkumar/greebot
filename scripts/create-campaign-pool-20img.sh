@@ -1,9 +1,9 @@
 #!/bin/bash
 # create-campaign-pool-20img.sh
-# Campaign creator for 1 phone × 20 images = 20 submissions per job
+# Campaign creator for 5 phones × 20 images = 100 submissions per job
 #
 # Reads phones from data/phones.txt, picks images from S3 pool,
-# creates job files (1 phone × 20 images = 20 submissions per job),
+# creates job files (5 phones × 20 images = 100 submissions per job),
 # uploads everything to S3, and prints EC2 export commands.
 #
 # Usage (run from repo root):
@@ -21,7 +21,7 @@ S3_BUCKET="greendotball-bot-data"
 POOL_PREFIX="images-pool/"
 REGION="ap-south-1"
 PHONES_FILE="data/phones.txt"
-PHONES_PER_JOB=1
+PHONES_PER_JOB=5
 IMAGES_PER_JOB=20
 CAMPAIGN_NAME="${1:-pool-campaign}"
 
@@ -40,7 +40,7 @@ echo "  Campaign  : $CAMPAIGN_NAME"
 echo "  ID        : $CAMPAIGN_ID"
 echo "  Phones    : $PHONES_FILE"
 echo "  Pool      : s3://${S3_BUCKET}/${POOL_PREFIX}"
-echo "  Format    : 1 phone × 20 images = 20 submissions/job"
+echo "  Format    : 5 phones × 20 images = 100 submissions/job"
 echo "=================================================="
 echo ""
 
@@ -95,39 +95,43 @@ TOTAL_IMAGES=${#IMAGES[@]}
 echo "      ✅ Found $TOTAL_IMAGES images in pool"
 
 # ── Calculate jobs ────────────────────────────────────────────────────────────
-TOTAL_JOBS=$TOTAL_PHONES
-echo "[3/5] Creating $TOTAL_JOBS jobs (1 phone × 20 images = 20 submissions each)..."
+TOTAL_JOBS=$(( (TOTAL_PHONES + PHONES_PER_JOB - 1) / PHONES_PER_JOB ))
+echo "[3/5] Creating $TOTAL_JOBS jobs (5 phones × 20 images = 100 submissions each)..."
 echo ""
 
 ALL_JOB_IDS=""
 JOB_NUM=1
 GLOBAL_IMG_IDX=0   # sequential pointer across ALL pairs — never repeats until pool exhausted
 
-for (( pi=0; pi<TOTAL_PHONES; pi++ )); do
+for (( chunk=0; chunk<TOTAL_PHONES; chunk+=PHONES_PER_JOB )); do
   JOB_ID=$(printf "job-%03d" $JOB_NUM)
   JOB_FILE="/tmp/${CAMPAIGN_ID}-${JOB_ID}.json"
-  
-  phone="${PHONES[$pi]}"
 
-  # Build pairs JSON (1 phone × 20 images, images assigned sequentially 1-by-1)
+  # Phone group for this job
+  PHONE_GROUP=()
+  for (( pi=chunk; pi<chunk+PHONES_PER_JOB && pi<TOTAL_PHONES; pi++ )); do
+    PHONE_GROUP+=("${PHONES[$pi]}")
+  done
+
+  # Build pairs JSON (every phone × every image, images assigned sequentially 1-by-1)
   PAIRS_JSON="["
   FIRST=true
   PAIR_IDX=1
-  
-  for (( ki=0; ki<IMAGES_PER_JOB; ki++ )); do
-    IMG_IDX=$(( GLOBAL_IMG_IDX % TOTAL_IMAGES ))
-    imgKey="${IMAGES[$IMG_IDX]}"
-    GLOBAL_IMG_IDX=$(( GLOBAL_IMG_IDX + 1 ))
-    if [ "$FIRST" = true ]; then FIRST=false; else PAIRS_JSON="${PAIRS_JSON},"; fi
-    PAIRS_JSON="${PAIRS_JSON}
-      {\"id\":\"${JOB_ID}-pair-${PAIR_IDX}\",\"phoneNumber\":\"${phone}\",\"imagePath\":\"${imgKey}\"}"
-    PAIR_IDX=$((PAIR_IDX + 1))
+  for phone in "${PHONE_GROUP[@]}"; do
+    for (( ki=0; ki<IMAGES_PER_JOB; ki++ )); do
+      IMG_IDX=$(( GLOBAL_IMG_IDX % TOTAL_IMAGES ))
+      imgKey="${IMAGES[$IMG_IDX]}"
+      GLOBAL_IMG_IDX=$(( GLOBAL_IMG_IDX + 1 ))
+      if [ "$FIRST" = true ]; then FIRST=false; else PAIRS_JSON="${PAIRS_JSON},"; fi
+      PAIRS_JSON="${PAIRS_JSON}
+        {\"id\":\"${JOB_ID}-pair-${PAIR_IDX}\",\"phoneNumber\":\"${phone}\",\"imagePath\":\"${imgKey}\"}"
+      PAIR_IDX=$((PAIR_IDX + 1))
+    done
   done
-  
   PAIRS_JSON="${PAIRS_JSON}
   ]"
 
-  SUBMISSIONS=$IMAGES_PER_JOB
+  SUBMISSIONS=$((${#PHONE_GROUP[@]} * IMAGES_PER_JOB))
 
   # Write job JSON file
   cat > "$JOB_FILE" <<EOF
@@ -135,7 +139,7 @@ for (( pi=0; pi<TOTAL_PHONES; pi++ )); do
   "jobId": "${JOB_ID}",
   "campaignId": "${CAMPAIGN_ID}",
   "imageSource": "pool",
-  "phoneCount": 1,
+  "phoneCount": ${#PHONE_GROUP[@]},
   "imageCount": ${IMAGES_PER_JOB},
   "submissions": ${SUBMISSIONS},
   "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -147,14 +151,14 @@ EOF
   aws s3 cp "$JOB_FILE" "s3://${S3_BUCKET}/campaigns/${CAMPAIGN_ID}/jobs/${JOB_ID}.json" \
     --region $REGION --quiet
 
-  echo "  ✅ $JOB_ID | phone: ${phone:0:4}****** | images: $IMAGES_PER_JOB | submissions: $SUBMISSIONS"
+  echo "  ✅ $JOB_ID | phones: ${#PHONE_GROUP[@]} | images: $IMAGES_PER_JOB | submissions: $SUBMISSIONS"
 
   if [ -z "$ALL_JOB_IDS" ]; then ALL_JOB_IDS="$JOB_ID"; else ALL_JOB_IDS="${ALL_JOB_IDS},${JOB_ID}"; fi
   JOB_NUM=$((JOB_NUM + 1))
 done
 
 ACTUAL_JOBS=$((JOB_NUM - 1))
-TOTAL_SUBMISSIONS=$((ACTUAL_JOBS * IMAGES_PER_JOB))
+TOTAL_SUBMISSIONS=$((ACTUAL_JOBS * PHONES_PER_JOB * IMAGES_PER_JOB))
 
 # ── Upload masterjob.json ─────────────────────────────────────────────────────
 echo ""
@@ -210,7 +214,7 @@ echo ""
 echo "  Campaign ID       : $CAMPAIGN_ID"
 echo "  Total phones      : $TOTAL_PHONES"
 echo "  Total jobs        : $ACTUAL_JOBS"
-echo "  Submissions/job   : $IMAGES_PER_JOB"
+echo "  Submissions/job   : $((PHONES_PER_JOB * IMAGES_PER_JOB))"
 echo "  Total submissions : $TOTAL_SUBMISSIONS"
 echo "  EC2 instances     : $ACTUAL_JOBS (1 per job)"
 echo ""
