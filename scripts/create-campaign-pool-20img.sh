@@ -21,7 +21,7 @@ S3_BUCKET="greendotball-bot-data"
 POOL_PREFIX="rename-images/"
 REGION="ap-south-1"
 PHONES_FILE="data/phones.txt"
-PHONES_PER_JOB=5
+PHONES_PER_JOB=7
 IMAGES_PER_JOB=20
 CAMPAIGN_NAME="${1:-pool-campaign}"
 
@@ -40,7 +40,7 @@ echo "  Campaign  : $CAMPAIGN_NAME"
 echo "  ID        : $CAMPAIGN_ID"
 echo "  Phones    : $PHONES_FILE"
 echo "  Pool      : s3://${S3_BUCKET}/${POOL_PREFIX}"
-echo "  Format    : 5 phones × 20 images = 100 submissions/job"
+echo "  Format    : 7 phones × 20 images = 140 submissions/job"
 echo "=================================================="
 echo ""
 
@@ -108,7 +108,7 @@ echo "      ✅ Found $TOTAL_IMAGES images in pool"
 
 # ── Calculate jobs ────────────────────────────────────────────────────────────
 TOTAL_JOBS=$(( (TOTAL_PHONES + PHONES_PER_JOB - 1) / PHONES_PER_JOB ))
-echo "[3/5] Creating $TOTAL_JOBS jobs (5 phones × 20 images = 100 submissions each)..."
+echo "[3/5] Creating $TOTAL_JOBS jobs (7 phones × 20 images = 140 submissions each)..."
 echo ""
 
 ALL_JOB_IDS=""

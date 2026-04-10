@@ -51,7 +51,7 @@ echo "  Jobs      : $TOTAL_JOBS"
 echo "  AMI       : $AMI_ID"
 echo "  Type      : $INSTANCE_TYPE"
 echo "  Region    : $REGION"
-echo "  Shutdown  : 50 min hard limit per instance"
+echo "  Shutdown  : 55 min hard limit per instance"
 echo "=================================================="
 echo ""
 
@@ -144,7 +144,7 @@ echo "=================================================="
 echo "  Total jobs      : $TOTAL_JOBS"
 echo "  ✅ Launched     : $SUCCESS_COUNT"
 echo "  ❌ Failed       : $FAIL_COUNT"
-echo "  Auto-shutdown   : 50 min from launch"
+echo "  Auto-shutdown   : 55 min from launch"
 echo ""
 
 if [ $SUCCESS_COUNT -gt 0 ]; then

@@ -25,11 +25,11 @@ log "========================================"
 log "GreenDotBall Job Bot — EC2 Startup"
 log "========================================"
 
-# ─── Hard 50-minute shutdown timer (background) ───────────────────────────────
-# Ensures instance ALWAYS terminates within 50 min regardless of bot outcome
-( sleep 3000 && log "⏰ 50-min hard limit reached — shutting down" && sudo shutdown -h now ) &
+# ─── Hard 55-minute shutdown timer (background) ───────────────────────────────
+# Ensures instance ALWAYS terminates within 55 min regardless of bot outcome
+( sleep 3300 && log "⏰ 55-min hard limit reached — shutting down" && sudo shutdown -h now ) &
 SHUTDOWN_PID=$!
-log "Auto-shutdown armed: 50 min (PID $SHUTDOWN_PID)"
+log "Auto-shutdown armed: 55 min (PID $SHUTDOWN_PID)"
 
 # Get instance metadata (IMDSv2)
 IMDS_TOKEN=$(curl -sf -X PUT "http://169.254.169.254/latest/api/token" \
