@@ -60,17 +60,25 @@ sudo dnf update -y
 # Install Node.js
 sudo dnf install -y nodejs npm
 
-# Install Chromium and dependencies
-sudo dnf install -y chromium liberation-fonts nss atk cups-libs gtk3 \
+# Install Chrome dependencies
+sudo dnf install -y liberation-fonts nss atk cups-libs gtk3 \
   libXcomposite libXcursor libXdamage libXext libXi libXrandr \
   libXScrnSaver libXtst pango xdg-utils alsa-lib
+
+# Install Google Chrome (Amazon Linux 2023 does not have chromium in default repos)
+curl -O https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm
+sudo dnf install -y ./google-chrome-stable_current_x86_64.rpm
+rm -f google-chrome-stable_current_x86_64.rpm
+
+# Verify Chrome installation
+google-chrome --version
 
 # Install Git
 sudo dnf install -y git
 
 # Set environment variables
 echo 'export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true' >> ~/.bashrc
-echo 'export PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser' >> ~/.bashrc
+echo 'export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome' >> ~/.bashrc
 source ~/.bashrc
 ```
 
@@ -195,11 +203,11 @@ top -u ec2-user
    - If you see Chrome/Puppeteer related errors, try:
      ```bash
      # Verify Chrome installation
-     which chromium-browser
-     chromium-browser --version
+     which google-chrome
+     google-chrome --version
      
      # Update Puppeteer executable path if needed
-     export PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+     export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
      ```
 
 4. **Job file not found**:

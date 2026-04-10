@@ -18,7 +18,7 @@
 set -e
 
 S3_BUCKET="greendotball-bot-data"
-POOL_PREFIX="images-pool/"
+POOL_PREFIX="rename-images/"
 REGION="ap-south-1"
 PHONES_FILE="data/phones.txt"
 PHONES_PER_JOB=10
