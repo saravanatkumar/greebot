@@ -18,7 +18,7 @@
 set -e
 
 S3_BUCKET="greendotball-bot-data"
-POOL_PREFIX="rename-images/"
+POOL_PREFIX="green_ball_image_11apr/"
 REGION="ap-south-1"
 PHONES_FILE="data/phones.txt"
 PHONES_PER_JOB=7
@@ -77,19 +77,12 @@ echo "      ✅ phones.txt uploaded to S3"
 # ── List images from pool ─────────────────────────────────────────────────────
 echo "[2/5] Fetching image pool from S3..."
 
-# Use cached image list if available (speeds up repeated runs)
-CACHE_FILE="/tmp/image-pool-cache-${POOL_PREFIX//\//-}.txt"
-if [ -f "$CACHE_FILE" ]; then
-  echo "      Using cached image list from $CACHE_FILE"
-  IMAGE_LIST=$(cat "$CACHE_FILE")
-else
-  echo "      Querying S3 (this may take a moment)..."
-  IMAGE_LIST=$(aws s3 ls "s3://${S3_BUCKET}/${POOL_PREFIX}" --region $REGION \
-    | awk '{print $4}' | grep -iE '\.(jpg|jpeg|png|gif|webp)$')
-  # Cache for future runs
-  echo "$IMAGE_LIST" > "$CACHE_FILE"
-  echo "      Cached image list to $CACHE_FILE"
-fi
+echo "      Querying S3 (this may take a moment)..."
+IMAGE_LIST=$(aws s3 ls "s3://${S3_BUCKET}/${POOL_PREFIX}" --region $REGION \
+  | awk '{print $4}' | grep -iE '\.(jpg|jpeg|png|gif|webp)$')
+# Cache for future runs
+echo "$IMAGE_LIST" > "$CACHE_FILE"
+echo "      Cached image list to $CACHE_FILE"
 
 if [ -z "$IMAGE_LIST" ]; then
   echo "❌ ERROR: No images found in s3://${S3_BUCKET}/${POOL_PREFIX}"
