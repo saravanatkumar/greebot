@@ -14,7 +14,8 @@
 set -e
 
 # ── Config ────────────────────────────────────────────────────────────────────
-AMI_ID="ami-062031225a90c8e48"          # greendotball-bot-v4 (working submissions, 2026-04-04)
+#AMI_ID="ami-062031225a90c8e48"          # greendotball-bot-v4 (working submissions, 2026-04-04)
+AMI_ID="ami-069329948418953db"
 INSTANCE_TYPE="t3.small"
 KEY_NAME="greendotball-bot-key-v2"
 SECURITY_GROUP_NAME="greendotball-bot-sg"
