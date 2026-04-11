@@ -80,9 +80,6 @@ echo "[2/5] Fetching image pool from S3..."
 echo "      Querying S3 (this may take a moment)..."
 IMAGE_LIST=$(aws s3 ls "s3://${S3_BUCKET}/${POOL_PREFIX}" --region $REGION \
   | awk '{print $4}' | grep -iE '\.(jpg|jpeg|png|gif|webp)$')
-# Cache for future runs
-echo "$IMAGE_LIST" > "$CACHE_FILE"
-echo "      Cached image list to $CACHE_FILE"
 
 if [ -z "$IMAGE_LIST" ]; then
   echo "❌ ERROR: No images found in s3://${S3_BUCKET}/${POOL_PREFIX}"
