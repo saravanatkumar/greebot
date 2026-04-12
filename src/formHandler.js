@@ -24,6 +24,11 @@ class FormHandler {
     try {
       logger.info('Uploading image...');
 
+      await this.page.waitForSelector(SELECTORS.fileInput, { 
+        timeout: 15000,
+        hidden: true
+      });
+      
       const fileInput = await this.page.$(SELECTORS.fileInput);
       if (!fileInput) {
         throw new Error('File input not found (#imageInput)');
