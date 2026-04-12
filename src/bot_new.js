@@ -111,7 +111,12 @@ class GreenDotBallJobBot {
     await this.page.goto(this.config.targetUrl, {
       waitUntil: 'networkidle2', timeout: this.config.timeout || 30000
     });
+    await sleep(2000);
+    
+    logger.info('Waiting for form to be ready...');
+    await this.page.waitForSelector('#imageInput', { timeout: 30000 });
     await sleep(1000);
+    
     this.formHandler = new FormHandler(this.page, this.config);
   }
 
