@@ -21,7 +21,7 @@ S3_BUCKET="greendotball-bot-data"
 POOL_PREFIX="green_ball_image_12apr/"
 REGION="ap-south-1"
 PHONES_FILE="data/phones.txt"
-PHONES_PER_JOB=7
+PHONES_PER_JOB=6
 IMAGES_PER_JOB=20
 CAMPAIGN_NAME="${1:-pool-campaign}"
 
@@ -40,7 +40,7 @@ echo "  Campaign  : $CAMPAIGN_NAME"
 echo "  ID        : $CAMPAIGN_ID"
 echo "  Phones    : $PHONES_FILE"
 echo "  Pool      : s3://${S3_BUCKET}/${POOL_PREFIX}"
-echo "  Format    : 7 phones × 20 images = 140 submissions/job"
+echo "  Format    : 6 phones × 20 images = 120 submissions/job"
 echo "=================================================="
 echo ""
 
