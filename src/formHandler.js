@@ -2,7 +2,7 @@ const logger = require('./utils/logger');
 const { sleep, humanDelay } = require('./utils/helpers');
 
 const SELECTORS = {
-  fileInput:    '#imageInput',
+  fileInput:    '#fileInput',
   phoneInput:   '#phoneInput',
   termsCheckbox: '#termsCheckbox',
   slideKnob:    '#knob',
