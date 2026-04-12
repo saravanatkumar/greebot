@@ -2,7 +2,10 @@
 // Reads CAMPAIGN_ID + JOB_IDS from environment (set via EC2 USER_DATA or CLI args)
 // Downloads job files from S3, downloads images from S3, processes all pairs sequentially
 
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
+
 const path      = require('path');
 const fs        = require('fs');
 const AWS       = require('aws-sdk');
