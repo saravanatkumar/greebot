@@ -2,7 +2,7 @@ const logger = require('./utils/logger');
 const { sleep, humanDelay } = require('./utils/helpers');
 
 const SELECTORS = {
-  fileInput:    '#fileInput',
+  fileInput:    '#imageInput',
   phoneInput:   '#phoneInput',
   termsCheckbox: '#termsCheckbox',
   slideKnob:    '#knob',
@@ -25,8 +25,7 @@ class FormHandler {
       logger.info('Uploading image...');
 
       await this.page.waitForSelector(SELECTORS.fileInput, { 
-        timeout: 15000,
-        hidden: true
+        timeout: 15000
       });
       
       const fileInput = await this.page.$(SELECTORS.fileInput);
