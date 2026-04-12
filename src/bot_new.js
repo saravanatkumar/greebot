@@ -114,7 +114,25 @@ class GreenDotBallJobBot {
     await sleep(2000);
     
     logger.info('Waiting for form to be ready...');
-    await this.page.waitForSelector('#imageInput', { timeout: 30000 });
+    try {
+      await this.page.waitForSelector('#imageInput', { timeout: 30000 });
+      logger.info('Form is ready - #imageInput found');
+    } catch (error) {
+      logger.error('Failed to find #imageInput - taking debug screenshot and HTML dump');
+      
+      await this.page.screenshot({ path: 'logs/page-load-error.png', fullPage: true });
+      
+      const pageTitle = await this.page.title();
+      const pageUrl = this.page.url();
+      logger.error(`Page title: ${pageTitle}`);
+      logger.error(`Page URL: ${pageUrl}`);
+      
+      const bodyHTML = await this.page.evaluate(() => document.body.innerHTML);
+      logger.error(`Page HTML length: ${bodyHTML.length} chars`);
+      logger.error(`First 500 chars: ${bodyHTML.substring(0, 500)}`);
+      
+      throw error;
+    }
     await sleep(1000);
     
     this.formHandler = new FormHandler(this.page, this.config);
