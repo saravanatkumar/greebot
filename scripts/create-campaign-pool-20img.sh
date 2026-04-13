@@ -115,14 +115,15 @@ for (( chunk=0; chunk<TOTAL_PHONES; chunk+=PHONES_PER_JOB )); do
     PHONE_GROUP+=("${PHONES[$pi]}")
   done
 
-  # Build pairs JSON (every phone × random images)
+  # Build pairs JSON (every phone × images sequentially, no duplicates per phone)
   PAIRS_JSON="["
   FIRST=true
   PAIR_IDX=1
   for phone in "${PHONE_GROUP[@]}"; do
     for (( ki=0; ki<IMAGES_PER_JOB; ki++ )); do
-      IMG_IDX=$(( RANDOM % TOTAL_IMAGES ))
+      IMG_IDX=$(( GLOBAL_IMG_IDX % TOTAL_IMAGES ))
       imgKey="${IMAGES[$IMG_IDX]}"
+      GLOBAL_IMG_IDX=$(( GLOBAL_IMG_IDX + 1 ))
       if [ "$FIRST" = true ]; then FIRST=false; else PAIRS_JSON="${PAIRS_JSON},"; fi
       PAIRS_JSON="${PAIRS_JSON}
         {\"id\":\"${JOB_ID}-pair-${PAIR_IDX}\",\"phoneNumber\":\"${phone}\",\"imagePath\":\"${imgKey}\"}"
