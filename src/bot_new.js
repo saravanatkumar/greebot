@@ -202,7 +202,7 @@ class GreenDotBallJobBot {
 
       results.push({
         pairId:      pair.id,
-        phone:       maskPhoneNumber(phone),
+        phone:       phone,
         image:       path.basename(localImg),
         success:     result.success,
         message:     (result.message || '').replace(/<[^>]*>/g, '').trim(),

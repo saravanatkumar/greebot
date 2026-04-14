@@ -79,12 +79,41 @@ class FormHandler {
   async acceptTerms() {
     try {
       logger.info('Accepting terms and conditions...');
-      
+
       await this.page.waitForSelector(SELECTORS.termsCheckbox, { timeout: 5000 });
+
+      // Layer 1: direct click
       await this.page.click(SELECTORS.termsCheckbox);
       await sleep(500);
 
-      const isChecked = await this.page.$eval(SELECTORS.termsCheckbox, el => el.checked);
+      let isChecked = await this.page.$eval(SELECTORS.termsCheckbox, el => el.checked);
+
+      // Layer 2: click the associated <label> (handles custom-styled hidden checkboxes)
+      if (!isChecked) {
+        logger.warn('Direct click did not check — trying label click...');
+        await this.page.evaluate(() => {
+          const label = document.querySelector('label[for="termsCheckbox"]');
+          if (label) label.click();
+        });
+        await sleep(500);
+        isChecked = await this.page.$eval(SELECTORS.termsCheckbox, el => el.checked);
+      }
+
+      // Layer 3: force-check via JS (last resort)
+      if (!isChecked) {
+        logger.warn('Label click did not check — forcing via JS...');
+        await this.page.evaluate(() => {
+          const cb = document.querySelector('#termsCheckbox');
+          if (cb) {
+            cb.checked = true;
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+            cb.dispatchEvent(new Event('click',  { bubbles: true }));
+          }
+        });
+        await sleep(500);
+        isChecked = await this.page.$eval(SELECTORS.termsCheckbox, el => el.checked);
+      }
+
       if (!isChecked) {
         throw new Error('Terms checkbox not checked');
       }
