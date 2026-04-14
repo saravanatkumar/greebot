@@ -162,31 +162,32 @@ class FormHandler {
         throw new Error('Could not get bounding boxes for slide elements');
       }
 
-      const dragDistance = (trackBox.width - buttonBox.width - 10) * 0.85;
-      
+      const dragDistance = trackBox.width - buttonBox.width - 2; // 100% to end
+
       const startX = buttonBox.x + buttonBox.width / 2;
       const startY = buttonBox.y + buttonBox.height / 2;
-      const endX = startX + dragDistance;
+      const endX   = startX + dragDistance;
 
-      logger.info(`Dragging from ${startX.toFixed(0)} to ${endX.toFixed(0)}`);
+      logger.info(`Dragging from ${startX.toFixed(0)} to ${endX.toFixed(0)} (full track)`);
 
       await this.page.mouse.move(startX, startY);
-      await sleep(100);
+      await sleep(200);
       await this.page.mouse.down();
-      await sleep(50);
+      await sleep(100);
 
-      const steps = 20;
+      const steps = 40; // more steps = smoother, more reliable
       for (let i = 0; i <= steps; i++) {
         const x = startX + (dragDistance * i / steps);
         await this.page.mouse.move(x, startY);
-        await sleep(10);
+        await sleep(20);
       }
 
-      await sleep(50);
+      // Hold at end briefly before releasing
+      await sleep(200);
       await this.page.mouse.up();
-      
+
       logger.info('Mouse drag completed');
-      await sleep(300);
+      await sleep(500);
 
       return true;
     } catch (error) {

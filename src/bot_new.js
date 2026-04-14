@@ -157,6 +157,11 @@ class GreenDotBallJobBot {
   async submitWithRetry(phoneNumber, imagePath, retries = 2) {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
+        // On retry, switch to JS injection slide strategy (more reliable fallback)
+        if (attempt > 1) {
+          logger.warn(`Retry ${attempt}: switching slide strategy to javascript`);
+          this.config.slideStrategy = 'javascript';
+        }
         const result = await this.submitForm(phoneNumber, imagePath);
         return result;
       } catch (err) {
