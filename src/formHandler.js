@@ -47,7 +47,7 @@ class FormHandler {
 
   async enterPhoneNumber(phoneNumber) {
     try {
-      logger.info(`Entering phone number: ${phoneNumber.substring(0, 5)}*****`);
+      logger.info(`Entering phone number: ${phoneNumber}`);
       
       await this.page.waitForSelector(SELECTORS.phoneInput, { timeout: 5000 });
       await sleep(1000);

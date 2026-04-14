@@ -196,14 +196,14 @@ class GreenDotBallJobBot {
         continue;
       }
 
-      logger.info(`[${i+1}/${pairs.length}] Phone: ${maskPhoneNumber(phone)} | Image: ${path.basename(localImg)}`);
+      logger.info(`[${i+1}/${pairs.length}] Phone: ${phone} | Image: ${pair.imagePath}`);
 
       const result = await this.submitWithRetry(phone, localImg, this.config.retryAttempts || 2);
 
       results.push({
         pairId:      pair.id,
         phone:       phone,
-        image:       path.basename(localImg),
+        image:       pair.imagePath,
         success:     result.success,
         message:     (result.message || '').replace(/<[^>]*>/g, '').trim(),
         timestamp:   new Date().toISOString()
@@ -211,8 +211,8 @@ class GreenDotBallJobBot {
 
       const icon = result.success ? '✅' : '❌';
       const msg  = (result.message || '').replace(/<[^>]*>/g, '').trim();
-      console.log(`${icon} [${jobId}] #${i+1} | ${maskPhoneNumber(phone)} | ${path.basename(localImg)} | ${msg}`);
-      logger.info(`[${jobId}] #${i+1} result: success=${result.success} | phone=${maskPhoneNumber(phone)} | image=${path.basename(localImg)} | response="${msg}"`);
+      console.log(`${icon} [${jobId}] #${i+1} | ${phone} | ${pair.imagePath} | ${msg}`);
+      logger.info(`[${jobId}] #${i+1} result: success=${result.success} | phone=${phone} | image=${pair.imagePath} | response="${msg}"`);
 
       if (i < pairs.length - 1) await sleep(this.config.delayBetweenSubmissions || 3000);
     }
