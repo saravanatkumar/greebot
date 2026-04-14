@@ -1,0 +1,154 @@
+{
+  "Comment": "GreenDotBall Campaign Executor - Serverless Architecture",
+  "StartAt": "CreateJobs",
+  "States": {
+    "CreateJobs": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-south-1:<ACCOUNT_ID>:function:create-jobs",
+      "Parameters": {
+        "campaignId.$": "$.campaignId",
+        "phonesPerJob.$": "$.phonesPerJob",
+        "imagesPerJob.$": "$.imagesPerJob",
+        "imageSource.$": "$.imageSource"
+      },
+      "ResultPath": "$.jobsResult",
+      "Next": "LaunchFargateTasks",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "NotifyFailure"
+        }
+      ]
+    },
+    "LaunchFargateTasks": {
+      "Type": "Map",
+      "ItemsPath": "$.jobsResult.jobs",
+      "MaxConcurrency": 10,
+      "Parameters": {
+        "campaignId.$": "$.campaignId",
+        "jobId.$": "$$.Map.Item.Value.jobId",
+        "taskDefinition": "greendotball-bot-task",
+        "cluster": "greendotball-cluster",
+        "subnets": ["subnet-xxxxx", "subnet-yyyyy"],
+        "securityGroups": ["sg-zzzzz"]
+      },
+      "Iterator": {
+        "StartAt": "RunFargateTask",
+        "States": {
+          "RunFargateTask": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::ecs:runTask.sync",
+            "Parameters": {
+              "LaunchType": "FARGATE",
+              "Cluster.$": "$.cluster",
+              "TaskDefinition.$": "$.taskDefinition",
+              "NetworkConfiguration": {
+                "AwsvpcConfiguration": {
+                  "Subnets.$": "$.subnets",
+                  "SecurityGroups.$": "$.securityGroups",
+                  "AssignPublicIp": "DISABLED"
+                }
+              },
+              "Overrides": {
+                "ContainerOverrides": [
+                  {
+                    "Name": "greendotball-bot",
+                    "Environment": [
+                      {
+                        "Name": "CAMPAIGN_ID",
+                        "Value.$": "$.campaignId"
+                      },
+                      {
+                        "Name": "JOB_IDS",
+                        "Value.$": "$.jobId"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "ResultPath": "$.taskResult",
+            "End": true,
+            "Retry": [
+              {
+                "ErrorEquals": ["States.TaskFailed"],
+                "IntervalSeconds": 30,
+                "MaxAttempts": 2,
+                "BackoffRate": 2.0
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": ["States.ALL"],
+                "ResultPath": "$.taskError",
+                "Next": "LogTaskFailure"
+              }
+            ]
+          },
+          "LogTaskFailure": {
+            "Type": "Pass",
+            "Result": "Task failed but continuing",
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.tasksResult",
+      "Next": "AggregateResults",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "NotifyFailure"
+        }
+      ]
+    },
+    "AggregateResults": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-south-1:<ACCOUNT_ID>:function:aggregate-results",
+      "Parameters": {
+        "campaignId.$": "$.campaignId",
+        "jobsResult.$": "$.jobsResult",
+        "tasksResult.$": "$.tasksResult"
+      },
+      "ResultPath": "$.aggregateResult",
+      "Next": "NotifySuccess",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ]
+    },
+    "NotifySuccess": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "arn:aws:sns:ap-south-1:<ACCOUNT_ID>:greendotball-notifications",
+        "Subject": "Campaign Completed Successfully",
+        "Message.$": "States.Format('Campaign {} completed.\n\nTotal Jobs: {}\nSuccessful Submissions: {}\nFailed Submissions: {}\n\nDuration: {} minutes', $.campaignId, $.aggregateResult.totalJobs, $.aggregateResult.successCount, $.aggregateResult.failureCount, $.aggregateResult.durationMinutes)"
+      },
+      "End": true
+    },
+    "NotifyFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "arn:aws:sns:ap-south-1:<ACCOUNT_ID>:greendotball-notifications",
+        "Subject": "Campaign Failed",
+        "Message.$": "States.Format('Campaign {} failed.\n\nError: {}', $.campaignId, $.error.Error)"
+      },
+      "End": true
+    }
+  }
+}

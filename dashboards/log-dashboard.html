@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GreenDotBall – Log Analytics Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --green: #22c55e;
+      --red:   #ef4444;
+      --blue:  #3b82f6;
+      --gray:  #6b7280;
+    }
+    body { background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+    /* ── Nav ── */
+    .top-nav {
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      padding: 14px 24px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .top-nav .logo { width:32px; height:32px; background:var(--green); border-radius:50%; flex-shrink:0; }
+    .top-nav h1 { font-size: 1.1rem; font-weight: 700; margin: 0; color: #f1f5f9; }
+    .top-nav .badge-gen { font-size:0.72rem; color:#94a3b8; margin-left:auto; }
+
+    /* ── Tabs ── */
+    .tab-bar {
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      padding: 0 24px;
+      display: flex; gap: 4px;
+    }
+    .tab-btn {
+      background: none; border: none; color: #94a3b8;
+      padding: 12px 18px; font-size: 0.85rem; cursor: pointer;
+      border-bottom: 2px solid transparent; transition: all .15s;
+    }
+    .tab-btn:hover { color: #e2e8f0; }
+    .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+
+    /* ── Layout ── */
+    .content { padding: 24px; max-width: 1400px; margin: 0 auto; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Cards ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap:16px; margin-bottom:24px; }
+    .stat-card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 20px; text-align: center;
+    }
+    .stat-card .val { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .stat-card .lbl { font-size: 0.78rem; color: #94a3b8; margin-top: 6px; }
+    .val-green { color: var(--green); }
+    .val-red   { color: var(--red); }
+    .val-blue  { color: var(--blue); }
+    .val-white { color: #f1f5f9; }
+
+    /* ── Panel ── */
+    .panel {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 12px; padding: 20px; margin-bottom: 24px;
+    }
+    .panel-title { font-size: 0.9rem; font-weight: 600; color: #94a3b8; text-transform:uppercase; letter-spacing:.05em; margin-bottom:16px; }
+
+    /* ── Table ── */
+    .data-table { width:100%; border-collapse:collapse; font-size:0.84rem; }
+    .data-table th {
+      background: #0f172a; color:#94a3b8; font-weight:600; font-size:0.75rem;
+      text-transform:uppercase; letter-spacing:.04em;
+      padding: 10px 12px; text-align:left; cursor:pointer; user-select:none;
+      border-bottom: 1px solid #334155;
+    }
+    .data-table th:hover { color:#e2e8f0; }
+    .data-table td { padding: 10px 12px; border-bottom: 1px solid #1e293b; vertical-align:middle; }
+    .data-table tr:hover td { background: #1e3a5f22; }
+    .data-table tr.clickable { cursor: pointer; }
+    .badge-success { background:#14532d; color:#86efac; padding:2px 8px; border-radius:99px; font-size:0.75rem; }
+    .badge-fail    { background:#450a0a; color:#fca5a5; padding:2px 8px; border-radius:99px; font-size:0.75rem; }
+    .badge-neutral { background:#1e3a5f; color:#93c5fd; padding:2px 8px; border-radius:99px; font-size:0.75rem; }
+
+    /* ── Progress bar ── */
+    .prog-bar { height:6px; background:#334155; border-radius:99px; overflow:hidden; }
+    .prog-fill { height:100%; border-radius:99px; background:var(--green); }
+
+    /* ── Filters ── */
+    .filter-bar { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; align-items:center; }
+    .filter-bar input, .filter-bar select {
+      background:#0f172a; border:1px solid #334155; color:#e2e8f0;
+      padding:8px 12px; border-radius:8px; font-size:0.84rem; outline:none;
+    }
+    .filter-bar input:focus, .filter-bar select:focus { border-color: var(--blue); }
+    .filter-bar label { font-size:0.8rem; color:#94a3b8; }
+
+    /* ── Chart containers ── */
+    .chart-wrap { position:relative; height:300px; }
+    .chart-wrap-sm { position:relative; height:250px; }
+
+    /* ── Phone results ── */
+    .phone-result-card {
+      background:#0f172a; border:1px solid #334155; border-radius:8px;
+      padding:14px; margin-bottom:10px;
+    }
+    .phone-result-card .campaign-tag { font-size:0.72rem; color:#94a3b8; }
+    .phone-result-card .msg { font-size:0.8rem; color:#64748b; margin-top:4px; }
+
+    /* ── Modal ── */
+    .modal-backdrop-custom {
+      position:fixed; inset:0; background:rgba(0,0,0,.7);
+      display:flex; align-items:center; justify-content:center; z-index:9999;
+    }
+    .modal-box {
+      background:#1e293b; border:1px solid #334155; border-radius:16px;
+      width:min(90vw, 860px); max-height:80vh; overflow-y:auto; padding:28px;
+    }
+    .modal-box h3 { font-size:1rem; font-weight:700; margin-bottom:4px; }
+    .modal-close { background:none; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer; }
+
+    /* ── Reason bar ── */
+    .reason-row { margin-bottom:10px; }
+    .reason-label { font-size:0.8rem; color:#e2e8f0; margin-bottom:4px; white-space:pre-wrap; word-break:break-word; }
+    .reason-count { font-size:0.75rem; color:#94a3b8; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align:center; padding:60px 20px; color:#475569; }
+    .empty-state i { font-size:3rem; display:block; margin-bottom:12px; }
+
+    /* ── Loading ── */
+    #loading-screen {
+      position:fixed; inset:0; background:#0f172a;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:99999;
+    }
+    .spinner {
+      width:48px; height:48px; border:4px solid #334155;
+      border-top-color:var(--green); border-radius:50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:#0f172a; }
+    ::-webkit-scrollbar-thumb { background:#334155; border-radius:99px; }
+  </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading-screen">
+  <div class="spinner" style="margin-bottom:20px;"></div>
+  <div style="color:#94a3b8; font-size:0.9rem;">Loading dashboard data…</div>
+</div>
+
+<!-- Nav -->
+<nav class="top-nav">
+  <div class="logo"></div>
+  <h1>GreenDotBall &ndash; Log Analytics</h1>
+  <span class="badge-gen" id="gen-time"></span>
+</nav>
+
+<!-- Tab Bar -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('overview')"><i class="bi bi-grid-3x3-gap"></i> Overview</button>
+  <button class="tab-btn" onclick="switchTab('campaigns')"><i class="bi bi-collection"></i> Campaigns</button>
+  <button class="tab-btn" onclick="switchTab('datewise')"><i class="bi bi-calendar3"></i> Date-Wise</button>
+  <button class="tab-btn" onclick="switchTab('phone')"><i class="bi bi-telephone"></i> Phone Search</button>
+  <button class="tab-btn" onclick="switchTab('failures')"><i class="bi bi-exclamation-triangle"></i> Failure Analysis</button>
+</div>
+
+<!-- Content -->
+<div class="content">
+
+  <!-- ── OVERVIEW ── -->
+  <div id="view-overview" class="view active">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="val val-blue" id="s-campaigns">–</div><div class="lbl">Total Campaigns</div></div>
+      <div class="stat-card"><div class="val val-white" id="s-total">–</div><div class="lbl">Total Submissions</div></div>
+      <div class="stat-card"><div class="val val-green" id="s-success">–</div><div class="lbl">Succeeded</div></div>
+      <div class="stat-card"><div class="val val-red" id="s-failed">–</div><div class="lbl">Failed</div></div>
+      <div class="stat-card"><div class="val val-green" id="s-rate">–</div><div class="lbl">Success Rate</div></div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="panel">
+          <div class="panel-title"><i class="bi bi-bar-chart"></i> Daily Submissions (Success vs Failure)</div>
+          <div class="chart-wrap"><canvas id="chart-daily-overview"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="panel">
+          <div class="panel-title"><i class="bi bi-pie-chart"></i> Overall Outcome</div>
+          <div class="chart-wrap"><canvas id="chart-donut"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><i class="bi bi-list-ul"></i> Recent Campaigns (Top 10)</div>
+      <table class="data-table" id="tbl-recent">
+        <thead>
+          <tr>
+            <th>Campaign</th>
+            <th>Date</th>
+            <th>Jobs</th>
+            <th>Total</th>
+            <th>✅ Success</th>
+            <th>❌ Failed</th>
+            <th>Rate</th>
+            <th>Progress</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── CAMPAIGNS ── -->
+  <div id="view-campaigns" class="view">
+    <div class="filter-bar">
+      <div>
+        <label>Search campaign</label><br>
+        <input type="text" id="camp-search" placeholder="Campaign name or ID…" style="width:260px;" oninput="renderCampaignsTable()">
+      </div>
+      <div>
+        <label>From date</label><br>
+        <input type="date" id="camp-from" onchange="renderCampaignsTable()">
+      </div>
+      <div>
+        <label>To date</label><br>
+        <input type="date" id="camp-to" onchange="renderCampaignsTable()">
+      </div>
+      <div>
+        <label>Sort by</label><br>
+        <select id="camp-sort" onchange="renderCampaignsTable()">
+          <option value="date-desc">Date (newest)</option>
+          <option value="date-asc">Date (oldest)</option>
+          <option value="total-desc">Total (high)</option>
+          <option value="success-desc">Success (high)</option>
+          <option value="rate-desc">Rate (high)</option>
+          <option value="rate-asc">Rate (low)</option>
+        </select>
+      </div>
+      <div style="align-self:flex-end;">
+        <button class="btn btn-sm btn-outline-secondary" onclick="clearCampaignFilters()">Clear</button>
+      </div>
+    </div>
+
+    <div class="panel" style="padding:0; overflow:hidden;">
+      <table class="data-table" id="tbl-campaigns">
+        <thead>
+          <tr>
+            <th onclick="setSortCamp('date-desc')">Date</th>
+            <th onclick="setSortCamp('name-asc')">Campaign ID</th>
+            <th>Jobs</th>
+            <th onclick="setSortCamp('total-desc')">Total</th>
+            <th onclick="setSortCamp('success-desc')">✅ Success</th>
+            <th onclick="setSortCamp('fail-desc')">❌ Failed</th>
+            <th onclick="setSortCamp('rate-desc')">Rate</th>
+            <th>Top Failure</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="camp-count" style="font-size:0.8rem;color:#64748b;margin-top:8px;"></div>
+  </div>
+
+  <!-- ── DATE-WISE ── -->
+  <div id="view-datewise" class="view">
+    <div class="filter-bar">
+      <div>
+        <label>From date</label><br>
+        <input type="date" id="dw-from" onchange="renderDateWise()">
+      </div>
+      <div>
+        <label>To date</label><br>
+        <input type="date" id="dw-to" onchange="renderDateWise()">
+      </div>
+      <div style="align-self:flex-end;">
+        <button class="btn btn-sm btn-outline-secondary" onclick="clearDateFilters()">Clear</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><i class="bi bi-bar-chart-fill"></i> Daily Success vs Failure</div>
+      <div class="chart-wrap" style="height:350px;"><canvas id="chart-datewise"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><i class="bi bi-table"></i> Day-by-Day Breakdown</div>
+      <table class="data-table" id="tbl-datewise">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>✅ Succeeded</th>
+            <th>❌ Failed</th>
+            <th>Total</th>
+            <th>Success Rate</th>
+            <th>Bar</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PHONE SEARCH ── -->
+  <div id="view-phone" class="view">
+    <div class="panel">
+      <div class="panel-title"><i class="bi bi-search"></i> Search by Phone Number</div>
+      <div style="display:flex;gap:12px;margin-bottom:20px;">
+        <input type="text" id="phone-input" class="form-control" placeholder="e.g. 93111***** or 9311" style="max-width:360px;background:#0f172a;border-color:#334155;color:#e2e8f0;" oninput="searchPhone()">
+        <button class="btn btn-outline-success" onclick="searchPhone()"><i class="bi bi-search"></i> Search</button>
+      </div>
+      <div id="phone-results"></div>
+    </div>
+  </div>
+
+  <!-- ── FAILURE ANALYSIS ── -->
+  <div id="view-failures" class="view">
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="panel">
+          <div class="panel-title"><i class="bi bi-pie-chart"></i> Failure Distribution</div>
+          <div class="chart-wrap-sm"><canvas id="chart-failures-pie"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="panel">
+          <div class="panel-title"><i class="bi bi-sort-down"></i> Top Failure Reasons</div>
+          <div id="failure-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><i class="bi bi-table"></i> All Failure Reasons</div>
+      <table class="data-table" id="tbl-failures">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Reason</th>
+            <th>Count</th>
+            <th>% of Failures</th>
+            <th>Bar</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- Campaign Detail Modal -->
+<div id="modal-campaign" class="modal-backdrop-custom" style="display:none;" onclick="closeModal(event)">
+  <div class="modal-box">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <h3 id="modal-title">Campaign Detail</h3>
+        <div id="modal-subtitle" style="font-size:0.8rem;color:#94a3b8;"></div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('modal-campaign').style.display='none'">&times;</button>
+    </div>
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
+      <div class="stat-card"><div class="val val-white" id="m-total">–</div><div class="lbl">Total</div></div>
+      <div class="stat-card"><div class="val val-green" id="m-success">–</div><div class="lbl">Success</div></div>
+      <div class="stat-card"><div class="val val-red" id="m-failed">–</div><div class="lbl">Failed</div></div>
+      <div class="stat-card"><div class="val val-green" id="m-rate">–</div><div class="lbl">Rate</div></div>
+    </div>
+    <div class="panel-title">Job Breakdown</div>
+    <table class="data-table" id="modal-jobs-table">
+      <thead>
+        <tr><th>Job ID</th><th>Total</th><th>✅ Success</th><th>❌ Failed</th><th>Rate</th><th>Completed</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="panel-title" style="margin-top:20px;">Failure Reasons</div>
+    <div id="modal-failures"></div>
+  </div>
+</div>
+
+<script>
+// ── Global state ──────────────────────────────────────────────────────────────
+let DATA = null;
+let charts = {};
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function boot() {
+  try {
+    const resp = await fetch('./data/dashboard-data.json');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    DATA = await resp.json();
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('gen-time').textContent =
+      'Generated: ' + new Date(DATA.generatedAt).toLocaleString();
+    renderAll();
+  } catch (e) {
+    document.getElementById('loading-screen').innerHTML =
+      `<div style="color:#ef4444;text-align:center;max-width:400px;padding:20px;">
+        <i class="bi bi-exclamation-triangle" style="font-size:3rem;display:block;margin-bottom:12px;"></i>
+        <strong>Cannot load dashboard-data.json</strong><br>
+        <small style="color:#94a3b8;">Run: <code>node scripts/sync-dashboard-data.js</code><br>
+        then serve this folder: <code>npx serve dashboards</code></small>
+      </div>`;
+  }
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('view-' + name).classList.add('active');
+}
+
+// ── Formatters ────────────────────────────────────────────────────────────────
+function pct(n, d) { return d ? ((n/d)*100).toFixed(1) + '%' : '0%'; }
+function num(n) { return (n||0).toLocaleString(); }
+function rateColor(r) { return r >= 70 ? '#22c55e' : r >= 40 ? '#f59e0b' : '#ef4444'; }
+
+function rateBar(succ, total) {
+  const r = total ? (succ/total)*100 : 0;
+  return `<div class="prog-bar"><div class="prog-fill" style="width:${r.toFixed(1)}%;background:${rateColor(r)};"></div></div>`;
+}
+
+// ── Render all ────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderOverview();
+  renderCampaignsTable();
+  renderDateWise();
+  renderFailureAnalysis();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OVERVIEW
+// ─────────────────────────────────────────────────────────────────────────────
+function renderOverview() {
+  const s = DATA.summary;
+  document.getElementById('s-campaigns').textContent = num(s.totalCampaigns);
+  document.getElementById('s-total').textContent = num(s.totalSubmissions);
+  document.getElementById('s-success').textContent = num(s.totalSucceeded);
+  document.getElementById('s-failed').textContent = num(s.totalFailed);
+  document.getElementById('s-rate').textContent = pct(s.totalSucceeded, s.totalSubmissions);
+
+  // Donut chart
+  if (charts.donut) charts.donut.destroy();
+  charts.donut = new Chart(document.getElementById('chart-donut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Succeeded', 'Failed'],
+      datasets: [{
+        data: [s.totalSucceeded, s.totalFailed],
+        backgroundColor: ['#22c55e', '#ef4444'],
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      plugins: { legend: { labels: { color: '#94a3b8' } } },
+      cutout: '65%',
+    }
+  });
+
+  // Daily overview chart (last 14 days or all)
+  const dates = DATA.dateStats.slice(-14);
+  if (charts.dailyOverview) charts.dailyOverview.destroy();
+  charts.dailyOverview = buildBarChart('chart-daily-overview', dates);
+
+  // Recent campaigns table (top 10)
+  const tbody = document.querySelector('#tbl-recent tbody');
+  tbody.innerHTML = '';
+  DATA.campaigns.slice(0, 10).forEach(c => {
+    tbody.innerHTML += campaignRow(c, false);
+  });
+}
+
+function buildBarChart(canvasId, dates) {
+  return new Chart(document.getElementById(canvasId), {
+    type: 'bar',
+    data: {
+      labels: dates.map(d => d.date),
+      datasets: [
+        { label: 'Succeeded', data: dates.map(d => d.succeeded), backgroundColor: '#22c55e99', borderColor:'#22c55e', borderWidth:1 },
+        { label: 'Failed',    data: dates.map(d => d.failed),    backgroundColor: '#ef444499', borderColor:'#ef4444', borderWidth:1 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { ticks:{color:'#94a3b8'}, grid:{color:'#1e293b'} },
+        y: { ticks:{color:'#94a3b8'}, grid:{color:'#334155'} },
+      },
+      plugins: { legend: { labels: { color: '#94a3b8' } } },
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAMPAIGNS TABLE
+// ─────────────────────────────────────────────────────────────────────────────
+function campaignRow(c, clickable = true) {
+  const rate = c.total ? ((c.succeeded / c.total) * 100) : 0;
+  const topFail = c.failureReasons
+    ? Object.entries(c.failureReasons).sort(([,a],[,b])=>b-a)[0]
+    : null;
+  return `<tr class="${clickable ? 'clickable' : ''}" onclick="${clickable ? `openCampaignModal('${c.id}')` : ''}">
+    <td><span style="color:#94a3b8;font-size:0.8rem;">${c.date}</span></td>
+    <td style="font-family:monospace;font-size:0.78rem;color:#93c5fd;">${c.id}</td>
+    <td><span class="badge-neutral">${c.jobs ? c.jobs.length : (c.totalJobs || '–')}</span></td>
+    <td>${num(c.total)}</td>
+    <td style="color:#22c55e;">${num(c.succeeded)}</td>
+    <td style="color:#ef4444;">${num(c.failed)}</td>
+    <td><span style="color:${rateColor(rate)};font-weight:600;">${rate.toFixed(1)}%</span></td>
+    ${clickable ? `<td style="max-width:200px;font-size:0.75rem;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${topFail?topFail[0]:''}">${topFail ? `<span class="badge-fail">${topFail[0].substring(0,40)}${topFail[0].length>40?'…':''}</span>` : '–'}</td>` : ''}
+    ${clickable ? `<td><button class="btn btn-sm" style="background:#1e3a5f;color:#93c5fd;font-size:0.75rem;" onclick="event.stopPropagation();openCampaignModal('${c.id}')"><i class="bi bi-eye"></i></button></td>` : ''}
+  </tr>`;
+}
+
+function renderCampaignsTable() {
+  const search = (document.getElementById('camp-search').value || '').toLowerCase();
+  const from   = document.getElementById('camp-from').value;
+  const to     = document.getElementById('camp-to').value;
+  const sort   = document.getElementById('camp-sort').value;
+
+  let rows = DATA.campaigns.filter(c => {
+    if (search && !c.id.toLowerCase().includes(search) && !(c.name||'').toLowerCase().includes(search)) return false;
+    if (from && c.date < from) return false;
+    if (to   && c.date > to)   return false;
+    return true;
+  });
+
+  rows.sort((a, b) => {
+    const ra = a.total ? a.succeeded/a.total : 0;
+    const rb = b.total ? b.succeeded/b.total : 0;
+    if (sort === 'date-desc')    return b.date.localeCompare(a.date);
+    if (sort === 'date-asc')     return a.date.localeCompare(b.date);
+    if (sort === 'total-desc')   return (b.total||0) - (a.total||0);
+    if (sort === 'success-desc') return (b.succeeded||0) - (a.succeeded||0);
+    if (sort === 'rate-desc')    return rb - ra;
+    if (sort === 'rate-asc')     return ra - rb;
+    if (sort === 'name-asc')     return a.id.localeCompare(b.id);
+    return 0;
+  });
+
+  const tbody = document.querySelector('#tbl-campaigns tbody');
+  tbody.innerHTML = rows.length ? rows.map(c => campaignRow(c, true)).join('') :
+    `<tr><td colspan="9"><div class="empty-state"><i class="bi bi-inbox"></i>No campaigns match the filters</div></td></tr>`;
+  document.getElementById('camp-count').textContent = `Showing ${rows.length} of ${DATA.campaigns.length} campaigns`;
+}
+
+function clearCampaignFilters() {
+  document.getElementById('camp-search').value = '';
+  document.getElementById('camp-from').value = '';
+  document.getElementById('camp-to').value = '';
+  document.getElementById('camp-sort').value = 'date-desc';
+  renderCampaignsTable();
+}
+
+function setSortCamp(val) {
+  document.getElementById('camp-sort').value = val;
+  renderCampaignsTable();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATE-WISE
+// ─────────────────────────────────────────────────────────────────────────────
+function renderDateWise() {
+  const from = document.getElementById('dw-from').value;
+  const to   = document.getElementById('dw-to').value;
+
+  let dates = DATA.dateStats.filter(d => {
+    if (from && d.date < from) return false;
+    if (to   && d.date > to)   return false;
+    return true;
+  });
+
+  if (charts.datewise) charts.datewise.destroy();
+  charts.datewise = buildBarChart('chart-datewise', dates);
+
+  const tbody = document.querySelector('#tbl-datewise tbody');
+  const maxTotal = Math.max(...dates.map(d => d.succeeded + d.failed), 1);
+  tbody.innerHTML = dates.length ? [...dates].reverse().map(d => {
+    const total = d.succeeded + d.failed;
+    const rate  = total ? (d.succeeded / total * 100) : 0;
+    return `<tr>
+      <td style="font-family:monospace;">${d.date}</td>
+      <td style="color:#22c55e;">${num(d.succeeded)}</td>
+      <td style="color:#ef4444;">${num(d.failed)}</td>
+      <td>${num(total)}</td>
+      <td><span style="color:${rateColor(rate)};font-weight:600;">${rate.toFixed(1)}%</span></td>
+      <td style="min-width:120px;">${rateBar(d.succeeded, total)}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6"><div class="empty-state"><i class="bi bi-inbox"></i>No data</div></td></tr>`;
+}
+
+function clearDateFilters() {
+  document.getElementById('dw-from').value = '';
+  document.getElementById('dw-to').value = '';
+  renderDateWise();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHONE SEARCH
+// ─────────────────────────────────────────────────────────────────────────────
+function searchPhone() {
+  const q = document.getElementById('phone-input').value.trim();
+  const container = document.getElementById('phone-results');
+
+  if (!q || q.length < 4) {
+    container.innerHTML = `<div class="empty-state"><i class="bi bi-telephone"></i>Enter at least 4 digits to search</div>`;
+    return;
+  }
+
+  const qDigits = q.replace(/\D/g, ''); // strip non-digits for comparison
+  const matches = Object.entries(DATA.byPhone || {})
+    .filter(([phone]) => {
+      const storedDigits = phone.replace(/\*/g, '');
+      // exact masked format match e.g. "93111*****"
+      if (phone.includes(q) || q.includes(phone)) return true;
+      // digit-only comparison: full number (9311123456) or partial (93111 or 311)
+      if (qDigits.length >= 4) {
+        return storedDigits.includes(qDigits) ||
+               qDigits.startsWith(storedDigits) ||
+               qDigits.includes(storedDigits);
+      }
+      return false;
+    });
+
+  if (!matches.length) {
+    container.innerHTML = `<div class="empty-state"><i class="bi bi-telephone-x"></i>No results for "<strong>${q}</strong>"</div>`;
+    return;
+  }
+
+  let html = '';
+  let totalS = 0, totalF = 0;
+
+  for (const [phone, entries] of matches) {
+    const succ = entries.filter(e => e.success).length;
+    const fail = entries.length - succ;
+    totalS += succ; totalF += fail;
+
+    html += `<div style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+        <span style="font-size:1.1rem;font-weight:700;color:#f1f5f9;">${phone}</span>
+        <span class="badge-success">${succ} success</span>
+        <span class="badge-fail">${fail} failed</span>
+        <span class="badge-neutral">${entries.length} total</span>
+      </div>`;
+
+    // Group by campaign
+    const byCamp = {};
+    for (const e of entries) {
+      if (!byCamp[e.campaignId]) byCamp[e.campaignId] = [];
+      byCamp[e.campaignId].push(e);
+    }
+
+    for (const [campId, campEntries] of Object.entries(byCamp)) {
+      const cs = campEntries.filter(e => e.success).length;
+      const cf = campEntries.length - cs;
+      html += `<div class="phone-result-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="campaign-tag"><i class="bi bi-collection"></i> ${campId}</span>
+          <span style="font-size:0.75rem;">${campEntries[0].campaignDate || ''}</span>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="badge-success">${cs} ✅</span>
+          <span class="badge-fail">${cf} ❌</span>
+          <span class="badge-neutral">${campEntries.length} submissions</span>
+        </div>
+        <table class="data-table" style="margin-top:10px;">
+          <thead><tr><th>#</th><th>Status</th><th>Image</th><th>Message</th><th>Time</th></tr></thead>
+          <tbody>
+            ${campEntries.map((e, i) => `<tr>
+              <td style="color:#64748b;">${i+1}</td>
+              <td>${e.success ? '<span class="badge-success">✅ OK</span>' : '<span class="badge-fail">❌ Fail</span>'}</td>
+              <td style="font-size:0.72rem;color:#64748b;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${e.image||''}">${(e.image||'–').split('/').pop().substring(0,30)}…</td>
+              <td style="font-size:0.75rem;color:${e.success?'#86efac':'#fca5a5'};max-width:260px;">${e.message||'–'}</td>
+              <td style="font-size:0.72rem;color:#64748b;">${e.timestamp ? new Date(e.timestamp).toLocaleString() : '–'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    }
+    html += '</div>';
+  }
+
+  const summary = `<div class="stat-grid" style="margin-bottom:16px;">
+    <div class="stat-card"><div class="val val-white">${matches.length}</div><div class="lbl">Matching Phones</div></div>
+    <div class="stat-card"><div class="val val-white">${num(totalS + totalF)}</div><div class="lbl">Total Submissions</div></div>
+    <div class="stat-card"><div class="val val-green">${num(totalS)}</div><div class="lbl">Succeeded</div></div>
+    <div class="stat-card"><div class="val val-red">${num(totalF)}</div><div class="lbl">Failed</div></div>
+    <div class="stat-card"><div class="val val-green">${pct(totalS, totalS+totalF)}</div><div class="lbl">Success Rate</div></div>
+  </div>`;
+
+  container.innerHTML = summary + html;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FAILURE ANALYSIS
+// ─────────────────────────────────────────────────────────────────────────────
+function renderFailureAnalysis() {
+  const reasons = DATA.failureReasons || [];
+  const totalFails = reasons.reduce((s, r) => s + r.count, 0);
+  const top10 = reasons.slice(0, 10);
+  const COLORS = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#14b8a6','#3b82f6','#8b5cf6','#ec4899'];
+
+  // Pie chart
+  if (charts.failPie) charts.failPie.destroy();
+  charts.failPie = new Chart(document.getElementById('chart-failures-pie'), {
+    type: 'doughnut',
+    data: {
+      labels: top10.map(r => r.reason.substring(0,30)),
+      datasets: [{
+        data: top10.map(r => r.count),
+        backgroundColor: COLORS,
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      plugins: { legend: { labels: { color: '#94a3b8', font:{size:11} }, position:'right' } },
+      cutout: '50%',
+    }
+  });
+
+  // Bar list
+  const listEl = document.getElementById('failure-list');
+  const max = top10[0] ? top10[0].count : 1;
+  listEl.innerHTML = top10.map((r, i) => `
+    <div class="reason-row">
+      <div style="display:flex;justify-content:space-between;">
+        <span class="reason-label" style="color:${COLORS[i]||'#94a3b8'}">${r.reason}</span>
+        <span class="reason-count">${num(r.count)} (${pct(r.count, totalFails)})</span>
+      </div>
+      <div class="prog-bar" style="margin-top:4px;">
+        <div class="prog-fill" style="width:${(r.count/max*100).toFixed(1)}%;background:${COLORS[i]||'#94a3b8'};"></div>
+      </div>
+    </div>
+  `).join('');
+
+  // Table
+  const tbody = document.querySelector('#tbl-failures tbody');
+  tbody.innerHTML = reasons.length ? reasons.map((r, i) => `<tr>
+    <td style="color:#64748b;">${i+1}</td>
+    <td style="font-size:0.82rem;max-width:340px;word-break:break-word;">${r.reason}</td>
+    <td style="font-weight:700;">${num(r.count)}</td>
+    <td>${pct(r.count, totalFails)}</td>
+    <td style="min-width:100px;">${rateBar(r.count, totalFails)}</td>
+  </tr>`).join('') :
+    `<tr><td colspan="5"><div class="empty-state"><i class="bi bi-check-circle"></i>No failures recorded</div></td></tr>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAMPAIGN MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+function openCampaignModal(id) {
+  const c = DATA.campaigns.find(x => x.id === id);
+  if (!c) return;
+
+  document.getElementById('modal-title').textContent = c.id;
+  document.getElementById('modal-subtitle').textContent = `Date: ${c.date}  |  Jobs: ${(c.jobs||[]).length}`;
+
+  const rate = c.total ? (c.succeeded / c.total * 100) : 0;
+  document.getElementById('m-total').textContent   = num(c.total);
+  document.getElementById('m-success').textContent = num(c.succeeded);
+  document.getElementById('m-failed').textContent  = num(c.failed);
+  document.getElementById('m-rate').textContent    = rate.toFixed(1) + '%';
+
+  // Jobs table
+  const jbody = document.querySelector('#modal-jobs-table tbody');
+  jbody.innerHTML = (c.jobs || []).map(j => {
+    const jr = j.total ? (j.succeeded / j.total * 100) : 0;
+    return `<tr>
+      <td style="font-family:monospace;color:#93c5fd;">${j.jobId}</td>
+      <td>${num(j.total)}</td>
+      <td style="color:#22c55e;">${num(j.succeeded)}</td>
+      <td style="color:#ef4444;">${num(j.failed)}</td>
+      <td><span style="color:${rateColor(jr)};font-weight:600;">${jr.toFixed(1)}%</span></td>
+      <td style="font-size:0.75rem;color:#64748b;">${j.completedAt ? new Date(j.completedAt).toLocaleString() : '–'}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6" style="text-align:center;color:#64748b;">No job data</td></tr>`;
+
+  // Failure reasons
+  const fr = c.failureReasons || {};
+  const frEntries = Object.entries(fr).sort(([,a],[,b]) => b-a);
+  const mFail = document.getElementById('modal-failures');
+  mFail.innerHTML = frEntries.length ? frEntries.map(([r,cnt]) =>
+    `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #334155;font-size:0.82rem;">
+      <span style="color:#fca5a5;">${r}</span>
+      <span class="badge-fail">${cnt}</span>
+    </div>`
+  ).join('') : `<div style="color:#64748b;font-size:0.84rem;padding:8px 0;">No failures</div>`;
+
+  document.getElementById('modal-campaign').style.display = 'flex';
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-campaign'))
+    document.getElementById('modal-campaign').style.display = 'none';
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>

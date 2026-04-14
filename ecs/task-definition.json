@@ -1,0 +1,39 @@
+{
+  "family": "greendotball-bot-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/greendotball-bot-task-role",
+  "containerDefinitions": [
+    {
+      "name": "greendotball-bot",
+      "image": "<ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/greendotball-bot:latest",
+      "essential": true,
+      "environment": [
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "ap-south-1"
+        },
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "name": "PUPPETEER_EXECUTABLE_PATH",
+          "value": "/usr/bin/google-chrome-stable"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/greendotball-bot",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "bot"
+        }
+      },
+      "stopTimeout": 120
+    }
+  ]
+}
