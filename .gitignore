@@ -6,3 +6,4 @@ data/phone-numbers.json
 *.jpg
 *.jpeg
 .DS_Store
+dashboards/data/

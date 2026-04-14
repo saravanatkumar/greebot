@@ -16,20 +16,30 @@ def split_phones():
     total_phones = len(phones)
     print(f"Total phones: {total_phones}")
     
-    # Split into batches
-    for batch_num in range(1, NUM_BATCHES + 1):
+    # Calculate actual number of batches needed
+    import math
+    actual_batches = math.ceil(total_phones / BATCH_SIZE)
+    print(f"Creating {actual_batches} batch(es) with {BATCH_SIZE} phones each\n")
+    
+    # Split into batches (only create non-empty batches)
+    batches_created = 0
+    for batch_num in range(1, actual_batches + 1):
         start_idx = (batch_num - 1) * BATCH_SIZE
         end_idx = min(start_idx + BATCH_SIZE, total_phones)
         
         batch_phones = phones[start_idx:end_idx]
-        batch_file = f"data/phone_batch_{batch_num:02d}.txt"
         
-        with open(batch_file, 'w') as f:
-            f.write('\n'.join(batch_phones) + '\n')
-        
-        print(f"Created {batch_file}: {len(batch_phones)} phones")
+        # Only create batch file if there are phones
+        if batch_phones:
+            batch_file = f"data/phone_batch_{batch_num:02d}.txt"
+            
+            with open(batch_file, 'w') as f:
+                f.write('\n'.join(batch_phones) + '\n')
+            
+            print(f"Created {batch_file}: {len(batch_phones)} phones")
+            batches_created += 1
     
-    print(f"\n✅ Created {NUM_BATCHES} batches successfully!")
+    print(f"\n✅ Created {batches_created} batch file(s) successfully!")
 
 if __name__ == "__main__":
     split_phones()
