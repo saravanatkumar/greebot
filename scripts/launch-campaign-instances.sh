@@ -72,10 +72,17 @@ echo "  ✅ Security Group: $SECURITY_GROUP_ID"
 echo ""
 
 # ── Confirm ───────────────────────────────────────────────────────────────────
-read -p "Launch $TOTAL_JOBS instances for campaign '$CAMPAIGN_ID'? (yes/no): " confirm
-if [ "$confirm" != "yes" ]; then
-  echo "Aborted."
-  exit 0
+# Skip confirmation if running non-interactively (e.g., from wave orchestrator)
+if [ -t 0 ]; then
+  # Interactive mode - ask for confirmation
+  read -p "Launch $TOTAL_JOBS instances for campaign '$CAMPAIGN_ID'? (yes/no): " confirm
+  if [ "$confirm" != "yes" ]; then
+    echo "Aborted."
+    exit 0
+  fi
+else
+  # Non-interactive mode - auto-confirm
+  echo "Auto-confirming launch of $TOTAL_JOBS instances for campaign '$CAMPAIGN_ID' (non-interactive mode)"
 fi
 
 echo ""
