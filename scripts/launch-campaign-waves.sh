@@ -163,8 +163,8 @@ process_batch() {
   echo "[Wave $wave_id] Batch $batch_num complete!"
   echo "  Campaign: $CAMPAIGN_ID"
   echo "  Instances: $instance_count"
-  echo "  Start time: $(date -r $start_time)"
-  echo "  Terminate at: $(date -r $((start_time + 3300)))"
+  echo "  Start time: $(date -d @$start_time 2>/dev/null || date -r $start_time)"
+  echo "  Terminate at: $(date -d @$((start_time + 3300)) 2>/dev/null || date -r $((start_time + 3300)))"
   echo ""
 }
 
@@ -204,7 +204,7 @@ for wave_num in $(seq 1 $TOTAL_WAVES); do
   
   # Wait for all instances in this wave to be terminated
   while ! check_wave_complete $wave_num; do
-    local running=$(grep "^${wave_num}|" "$STATE_FILE" 2>/dev/null | grep "|running$" | wc -l | tr -d ' ')
+    running=$(grep "^${wave_num}|" "$STATE_FILE" 2>/dev/null | grep "|running$" | wc -l | tr -d ' ')
     echo "[$(date)] Wave $wave_num: $running instances still running..."
     sleep 60  # Check every minute
   done
