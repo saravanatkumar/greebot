@@ -31,7 +31,7 @@ def split_phones():
         
         # Only create batch file if there are phones
         if batch_phones:
-            batch_file = f"data/phone_batch_{batch_num:02d}.txt"
+            batch_file = f"data/phone_batch_{batch_num}.txt"
             
             with open(batch_file, 'w') as f:
                 f.write('\n'.join(batch_phones) + '\n')

@@ -102,11 +102,10 @@ check_wave_complete() {
 process_batch() {
   local wave_id=$1
   local batch_num=$2
-  local batch_id=$(printf "%02d" $batch_num)
   
   echo ""
   echo "========================================"
-  echo "[Wave $wave_id] Processing Batch $batch_id"
+  echo "[Wave $wave_id] Processing Batch $batch_num"
   echo "========================================"
   echo "Start time: $(date)"
   
@@ -114,13 +113,13 @@ process_batch() {
   local start_time=$(date +%s)
   
   # Step 1: Copy batch phones to phones.txt
-  echo "[Step 1/5] Copying phone_batch_${batch_id}.txt to phones.txt..."
-  cp "data/phone_batch_${batch_id}.txt" "data/phones.txt"
+  echo "[Step 1/5] Copying phone_batch_${batch_num}.txt to phones.txt..."
+  cp "data/phone_batch_${batch_num}.txt" "data/phones.txt"
   echo "  ✓ Phones copied"
   
   # Step 2: Create campaign
-  echo "[Step 2/5] Creating campaign for batch-${batch_id}..."
-  local campaign_output=$(./scripts/create-campaign-pool-20img.sh "batch-${batch_id}" 2>&1)
+  echo "[Step 2/5] Creating campaign for batch-${batch_num}..."
+  local campaign_output=$(./scripts/create-campaign-pool-20img.sh "batch-${batch_num}" 2>&1)
   
   # Step 3 & 4: Parse CAMPAIGN_ID and JOB_IDS from output
   echo "[Step 3/5] Parsing campaign details..."
@@ -154,14 +153,14 @@ process_batch() {
       instance_count=$((instance_count + 1))
       local job_id=$(printf "job-%03d" $instance_count)
       
-      # Append to state file: wave_id|batch_id|job_id|instance_id|start_time|status
-      echo "${wave_id}|${batch_id}|${job_id}|${instance_id}|${start_time}|running" >> "$STATE_FILE"
+      # Append to state file: wave_id|batch_num|job_id|instance_id|start_time|status
+      echo "${wave_id}|${batch_num}|${job_id}|${instance_id}|${start_time}|running" >> "$STATE_FILE"
     fi
   done <<< "$instance_output"
   
   echo "  ✓ Logged $instance_count instances to state file"
   echo ""
-  echo "[Wave $wave_id] Batch $batch_id complete!"
+  echo "[Wave $wave_id] Batch $batch_num complete!"
   echo "  Campaign: $CAMPAIGN_ID"
   echo "  Instances: $instance_count"
   echo "  Start time: $(date -r $start_time)"
