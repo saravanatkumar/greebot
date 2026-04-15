@@ -138,6 +138,13 @@ process_batch() {
   echo "[Step 4/5] Launching EC2 instances..."
   local instance_output=$(./scripts/launch-campaign-instances.sh 2>&1)
   
+  # DEBUG: Print full output
+  echo ""
+  echo "=== INSTANCE LAUNCH OUTPUT (DEBUG) ==="
+  echo "$instance_output"
+  echo "=== END DEBUG OUTPUT ==="
+  echo ""
+  
   # Step 6: Extract instance IDs and log to state file
   echo "[Step 5/5] Logging instances to state file..."
   
