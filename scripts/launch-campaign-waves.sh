@@ -10,8 +10,8 @@ set -e
 # CONFIGURATION
 # ========================================
 # USER CONFIGURABLE - Change these values as needed
-TOTAL_BATCHES_INPUT=1      # Total number of batches to process
-BATCHES_PER_WAVE=4          # Number of batches per wave
+TOTAL_BATCHES_INPUT=4      # Total number of batches to process
+BATCHES_PER_WAVE=2         # Number of batches per wave
 
 # Other settings
 BATCH_STAGGER_INTERVAL=600  # 10 minutes between batches
