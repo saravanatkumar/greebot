@@ -15,7 +15,7 @@ BATCHES_PER_WAVE=2         # Number of batches per wave
 
 # Other settings
 BATCH_STAGGER_INTERVAL=600  # 10 minutes between batches
-COOLDOWN_PERIOD=300         # 5 minutes between waves
+COOLDOWN_PERIOD=1800        # 30 minutes between waves
 STATE_FILE="logs/wave-state.log"
 EXECUTION_LOG="logs/wave-execution.log"
 REGION="ap-south-1"
