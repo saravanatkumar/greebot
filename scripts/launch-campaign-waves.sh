@@ -10,7 +10,7 @@ set -e
 # CONFIGURATION
 # ========================================
 # USER CONFIGURABLE - Change these values as needed
-TOTAL_BATCHES_INPUT=4      # Total number of batches to process
+TOTAL_BATCHES_INPUT=18     # Total number of batches to process
 BATCHES_PER_WAVE=2         # Number of batches per wave
 
 # Other settings
