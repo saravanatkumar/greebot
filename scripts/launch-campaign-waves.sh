@@ -136,7 +136,7 @@ process_batch() {
   
   # Step 5: Launch EC2 instances
   echo "[Step 4/5] Launching EC2 instances..."
-  local instance_output=$(./scripts/launch-campaign-instances.sh 2>&1)
+  local instance_output=$(AUTO_CONFIRM=1 ./scripts/launch-campaign-instances.sh 2>&1)
   
   # DEBUG: Print full output
   echo ""
