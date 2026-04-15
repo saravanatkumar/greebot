@@ -116,6 +116,7 @@ EOF
     --key-name "$KEY_NAME" \
     --security-group-ids "$SECURITY_GROUP_ID" \
     --iam-instance-profile "Name=$IAM_ROLE" \
+    --instance-initiated-shutdown-behavior terminate \
     --user-data "$USER_DATA" \
     --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${INSTANCE_NAME}},{Key=CampaignId,Value=${CAMPAIGN_ID}},{Key=JobId,Value=${JOB_ID}},{Key=BatchNum,Value=${INST_NUM}},{Key=Project,Value=greendotball},{Key=LaunchedAt,Value=${LAUNCH_TIMESTAMP}}]" \
     --count 1 \
