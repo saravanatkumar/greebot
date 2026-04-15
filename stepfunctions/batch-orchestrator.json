@@ -1,0 +1,131 @@
+{
+  "Comment": "GreenDotBall Batch Orchestrator - Launches campaigns in controlled waves",
+  "StartAt": "PrepareBatchWaves",
+  "States": {
+    "PrepareBatchWaves": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-south-1:<ACCOUNT_ID>:function:prepare-batch-waves",
+      "Parameters": {
+        "batches.$": "$.batches",
+        "batchesPerWave": 5,
+        "delayBetweenWaves": 60
+      },
+      "ResultPath": "$.waves",
+      "Next": "ProcessWaves"
+    },
+    "ProcessWaves": {
+      "Type": "Map",
+      "ItemsPath": "$.waves.waveGroups",
+      "MaxConcurrency": 1,
+      "Parameters": {
+        "wave.$": "$$.Map.Item.Value",
+        "waveNumber.$": "$$.Map.Item.Index",
+        "totalWaves.$": "$.waves.totalWaves"
+      },
+      "Iterator": {
+        "StartAt": "LogWaveStart",
+        "States": {
+          "LogWaveStart": {
+            "Type": "Pass",
+            "Result": "Starting wave",
+            "ResultPath": "$.waveLog",
+            "Next": "LaunchBatchesInWave"
+          },
+          "LaunchBatchesInWave": {
+            "Type": "Map",
+            "ItemsPath": "$.wave.batches",
+            "MaxConcurrency": 5,
+            "Parameters": {
+              "campaignId.$": "$$.Map.Item.Value.campaignId",
+              "phonesPerJob.$": "$$.Map.Item.Value.phonesPerJob",
+              "imagesPerJob.$": "$$.Map.Item.Value.imagesPerJob",
+              "imageSource.$": "$$.Map.Item.Value.imageSource",
+              "batchNumber.$": "$$.Map.Item.Value.batchNumber"
+            },
+            "Iterator": {
+              "StartAt": "ExecuteCampaign",
+              "States": {
+                "ExecuteCampaign": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:ap-south-1:<ACCOUNT_ID>:stateMachine:greendotball-campaign-executor",
+                  "Parameters": {
+                    "campaignId.$": "$.campaignId",
+                    "phonesPerJob.$": "$.phonesPerJob",
+                    "imagesPerJob.$": "$.imagesPerJob",
+                    "imageSource.$": "$.imageSource"
+                  },
+                  "ResultPath": "$.campaignResult",
+                  "End": true,
+                  "Retry": [
+                    {
+                      "ErrorEquals": ["States.ALL"],
+                      "IntervalSeconds": 30,
+                      "MaxAttempts": 2,
+                      "BackoffRate": 2.0
+                    }
+                  ],
+                  "Catch": [
+                    {
+                      "ErrorEquals": ["States.ALL"],
+                      "ResultPath": "$.campaignError",
+                      "Next": "LogCampaignFailure"
+                    }
+                  ]
+                },
+                "LogCampaignFailure": {
+                  "Type": "Pass",
+                  "Result": "Campaign failed but continuing",
+                  "End": true
+                }
+              }
+            },
+            "ResultPath": "$.batchResults",
+            "Next": "CheckMoreWaves"
+          },
+          "CheckMoreWaves": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.waveNumber",
+                "NumericLessThan": 3,
+                "Next": "WaitBetweenWaves"
+              }
+            ],
+            "Default": "WaveComplete"
+          },
+          "WaitBetweenWaves": {
+            "Type": "Wait",
+            "Seconds": 60,
+            "Next": "WaveComplete"
+          },
+          "WaveComplete": {
+            "Type": "Pass",
+            "Result": "Wave completed",
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.allWaveResults",
+      "Next": "AggregateAllResults"
+    },
+    "AggregateAllResults": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-south-1:<ACCOUNT_ID>:function:aggregate-batch-results",
+      "Parameters": {
+        "waves.$": "$.allWaveResults"
+      },
+      "ResultPath": "$.finalResults",
+      "Next": "NotifyCompletion"
+    },
+    "NotifyCompletion": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "arn:aws:sns:ap-south-1:<ACCOUNT_ID>:greendotball-notifications",
+        "Subject": "All Batches Completed",
+        "Message.$": "States.Format('All batch waves completed.\n\nTotal Batches: {}\nTotal Submissions: {}\nSuccess Rate: {}%\n\nDuration: {} minutes', $.finalResults.totalBatches, $.finalResults.totalSubmissions, $.finalResults.successRate, $.finalResults.durationMinutes)"
+      },
+      "End": true
+    }
+  }
+}
