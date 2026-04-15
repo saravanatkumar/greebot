@@ -7,8 +7,12 @@
 # ========================================
 # CONFIGURATION
 # ========================================
-STATE_FILE="logs/wave-state.log"
-TEMP_FILE="logs/wave-state.tmp"
+# Get script directory and set absolute paths
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+STATE_FILE="${PROJECT_DIR}/logs/wave-state.log"
+TEMP_FILE="${PROJECT_DIR}/logs/wave-state.tmp"
 TIMEOUT=3300  # 55 minutes in seconds
 REGION="ap-south-1"
 
@@ -70,7 +74,7 @@ while IFS='|' read -r wave_id batch_id job_id instance_id start_time status; do
       aws ec2 terminate-instances \
         --region "$REGION" \
         --instance-ids "$instance_id" \
-        --output text >> logs/terminator.log 2>&1
+        --output text 2>&1
       
       if [[ $? -eq 0 ]]; then
         echo "[$(date)]   ✓ Terminated successfully"
@@ -120,7 +124,7 @@ if [[ $FINAL_RUNNING -eq 0 ]] && [[ $TOTAL_COUNT -gt 0 ]]; then
   
   # Create archive filename with timestamp
   TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-  ARCHIVE_FILE="logs/wave-state-${TIMESTAMP}.log"
+  ARCHIVE_FILE="${PROJECT_DIR}/logs/wave-state-${TIMESTAMP}.log"
   
   # Move state file to archive
   mv "$STATE_FILE" "$ARCHIVE_FILE"
