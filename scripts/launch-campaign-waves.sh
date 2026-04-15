@@ -84,20 +84,6 @@ fi
 # HELPER FUNCTIONS
 # ========================================
 
-# Check if all instances in a wave are terminated
-check_wave_complete() {
-  local wave_id=$1
-  
-  # Count running instances for this wave
-  local running_count=$(grep "^${wave_id}|" "$STATE_FILE" 2>/dev/null | grep "|running$" | wc -l | tr -d ' ')
-  
-  if [[ $running_count -eq 0 ]]; then
-    return 0  # Wave complete
-  else
-    return 1  # Still running
-  fi
-}
-
 # Process a single batch
 process_batch() {
   local wave_id=$1
@@ -205,18 +191,7 @@ for wave_num in $(seq 1 $TOTAL_WAVES); do
   echo "========================================"
   echo "[Wave $wave_num] All batches launched"
   echo "========================================"
-  echo "Waiting for all instances to be terminated..."
-  echo ""
-  
-  # Wait for all instances in this wave to be terminated
-  while ! check_wave_complete $wave_num; do
-    running=$(grep "^${wave_num}|" "$STATE_FILE" 2>/dev/null | grep "|running$" | wc -l | tr -d ' ')
-    echo "[$(date)] Wave $wave_num: $running instances still running..."
-    sleep 60  # Check every minute
-  done
-  
-  echo ""
-  echo "[Wave $wave_num] Complete! All instances terminated."
+  echo "Instances will auto-terminate after 55 minutes (managed by cron)"
   echo ""
   
   # Cooldown between waves (except after last wave)
@@ -231,15 +206,21 @@ done
 # ========================================
 echo ""
 echo "========================================"
-echo "  ALL WAVES COMPLETE!"
+echo "  ALL WAVES LAUNCHED!"
 echo "========================================"
 echo "End time: $(date)"
-echo "Total batches processed: $TOTAL_BATCHES"
+echo "Total batches launched: $TOTAL_BATCHES_INPUT"
 echo "Total waves: $TOTAL_WAVES"
 echo ""
-echo "Check results:"
-echo "  aws s3 ls s3://greendotball-bot-data/campaigns/ --recursive"
+echo " All instances have been launched and logged to: $STATE_FILE"
+echo "  Instances will auto-terminate after 55 minutes (managed by cron)"
 echo ""
-echo "View archived state files:"
-echo "  ls -lh logs/wave-state-*.log"
+echo " Monitor progress:"
+echo "  ./scripts/monitor-wave-progress.sh"
+echo ""
+echo " View state file:"
+echo "  cat $STATE_FILE"
+echo ""
+echo " Check terminator cron log:"
+echo "  tail -f logs/terminator.log"
 echo ""
