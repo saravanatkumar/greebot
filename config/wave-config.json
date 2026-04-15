@@ -1,0 +1,8 @@
+{
+  "batchesPerWave": 5,
+  "batchStaggerInterval": 600,
+  "cooldownPeriod": 300,
+  "timeout": 3300,
+  "stateFile": "logs/wave-state.log",
+  "region": "ap-south-1"
+}
