@@ -9,12 +9,36 @@ set -e
 # ========================================
 # CONFIGURATION
 # ========================================
-BATCHES_PER_WAVE=5
+BATCHES_PER_WAVE=3
 BATCH_STAGGER_INTERVAL=600  # 10 minutes between batches
 COOLDOWN_PERIOD=300         # 5 minutes between waves
 STATE_FILE="logs/wave-state.log"
 EXECUTION_LOG="logs/wave-execution.log"
 REGION="ap-south-1"
+
+# ========================================
+# WAVE CONFIGURATION
+# ========================================
+# Define wave batches
+# Wave 1: batches 1-5
+# Wave 2: batches 6-10
+# Wave 3: batches 11-15
+# Wave 4: batches 16-19 (only 4 batches)
+
+WAVE_BATCHES=(
+  "1 2 3 4 5"      # Wave 1
+  "6 7 8 9 10"     # Wave 2
+  "11 12 13 14 15" # Wave 3
+  "16 17 18 19"    # Wave 4
+)
+
+# Calculate totals dynamically
+TOTAL_WAVES=${#WAVE_BATCHES[@]}
+TOTAL_BATCHES=0
+for wave_batches in "${WAVE_BATCHES[@]}"; do
+  batch_count=$(echo $wave_batches | wc -w | tr -d ' ')
+  TOTAL_BATCHES=$((TOTAL_BATCHES + batch_count))
+done
 
 # ========================================
 # SETUP
@@ -23,9 +47,9 @@ echo "========================================"
 echo "  WAVE ORCHESTRATOR - GreenDotBall"
 echo "========================================"
 echo "Start time: $(date)"
-echo "Total batches: 20"
-echo "Waves: 4"
-echo "Batches per wave: $BATCHES_PER_WAVE"
+echo "Total batches: $TOTAL_BATCHES"
+echo "Total waves: $TOTAL_WAVES"
+echo "Batches per wave: varies (see wave config)"
 echo "========================================"
 echo ""
 
@@ -131,24 +155,11 @@ process_batch() {
 # MAIN EXECUTION
 # ========================================
 
-# Define wave batches
-# Wave 1: batches 1-5
-# Wave 2: batches 6-10
-# Wave 3: batches 11-15
-# Wave 4: batches 16-19 (only 4 batches)
-
-WAVE_BATCHES=(
-  "1 2 3 4 5"      # Wave 1
-  "6 7 8 9 10"     # Wave 2
-  "11 12 13 14 15" # Wave 3
-  "16 17 18 19"    # Wave 4
-)
-
 # Process each wave
-for wave_num in {1..4}; do
+for wave_num in $(seq 1 $TOTAL_WAVES); do
   echo ""
   echo "========================================"
-  echo "WAVE $wave_num OF 4"
+  echo "WAVE $wave_num OF $TOTAL_WAVES"
   echo "========================================"
   echo "Start time: $(date)"
   echo ""
@@ -186,7 +197,7 @@ for wave_num in {1..4}; do
   echo ""
   
   # Cooldown between waves (except after last wave)
-  if [[ $wave_num -lt 4 ]]; then
+  if [[ $wave_num -lt $TOTAL_WAVES ]]; then
     echo "Cooldown period: $((COOLDOWN_PERIOD / 60)) minutes before next wave..."
     sleep $COOLDOWN_PERIOD
   fi
@@ -200,8 +211,8 @@ echo "========================================"
 echo "  ALL WAVES COMPLETE!"
 echo "========================================"
 echo "End time: $(date)"
-echo "Total batches processed: 19"
-echo "Total waves: 4"
+echo "Total batches processed: $TOTAL_BATCHES"
+echo "Total waves: $TOTAL_WAVES"
 echo ""
 echo "Check results:"
 echo "  aws s3 ls s3://greendotball-bot-data/campaigns/ --recursive"
