@@ -5,7 +5,7 @@ Usage: python3 split_phones.py
 """
 
 MASTER_FILE = "data/masterPhone..txt"
-BATCH_SIZE = 20
+BATCH_SIZE = 330
 NUM_BATCHES = 14
 
 def split_phones():
