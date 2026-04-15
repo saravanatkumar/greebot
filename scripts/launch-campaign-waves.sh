@@ -148,15 +148,14 @@ process_batch() {
   # Step 6: Extract instance IDs and log to state file
   echo "[Step 5/5] Logging instances to state file..."
   
-  # Parse instance IDs from output
+  # Parse instance IDs from output - only from launch success lines (✅ [N/M] ... → i-xxx)
   local instance_count=0
   while read -r line; do
-    # Look for lines with instance IDs (format: i-xxxxxxxxxxxxxxxxx)
-    if [[ $line =~ (i-[a-f0-9]{17}) ]]; then
+    # Look for lines with format: ✅ [N/M] campaign-job-inst-N → i-xxxxxxxxxxxxxxxxx
+    if [[ $line =~ ✅.*→[[:space:]]+(i-[a-f0-9]{17}) ]]; then
       local instance_id="${BASH_REMATCH[1]}"
       
       # Determine job ID (job-001, job-002, etc.)
-      # We'll use a counter since we don't have exact job-to-instance mapping
       instance_count=$((instance_count + 1))
       local job_id=$(printf "job-%03d" $instance_count)
       
