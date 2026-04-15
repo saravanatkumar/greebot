@@ -9,7 +9,11 @@ set -e
 # ========================================
 # CONFIGURATION
 # ========================================
-BATCHES_PER_WAVE=3
+# USER CONFIGURABLE - Change these values as needed
+TOTAL_BATCHES_INPUT=18      # Total number of batches to process
+BATCHES_PER_WAVE=4          # Number of batches per wave
+
+# Other settings
 BATCH_STAGGER_INTERVAL=600  # 10 minutes between batches
 COOLDOWN_PERIOD=300         # 5 minutes between waves
 STATE_FILE="logs/wave-state.log"
@@ -17,28 +21,34 @@ EXECUTION_LOG="logs/wave-execution.log"
 REGION="ap-south-1"
 
 # ========================================
-# WAVE CONFIGURATION
+# WAVE CONFIGURATION (AUTO-GENERATED)
 # ========================================
-# Define wave batches
-# Wave 1: batches 1-5
-# Wave 2: batches 6-10
-# Wave 3: batches 11-15
-# Wave 4: batches 16-19 (only 4 batches)
+# Dynamically build WAVE_BATCHES array based on configuration
 
-WAVE_BATCHES=(
-  "1 2 3 4 5"      # Wave 1
-  "6 7 8 9 10"     # Wave 2
-  "11 12 13 14 15" # Wave 3
-  "16 17 18 19"    # Wave 4
-)
+# Calculate number of waves needed
+TOTAL_WAVES=$(( (TOTAL_BATCHES_INPUT + BATCHES_PER_WAVE - 1) / BATCHES_PER_WAVE ))
 
-# Calculate totals dynamically
-TOTAL_WAVES=${#WAVE_BATCHES[@]}
-TOTAL_BATCHES=0
-for wave_batches in "${WAVE_BATCHES[@]}"; do
-  batch_count=$(echo $wave_batches | wc -w | tr -d ' ')
-  TOTAL_BATCHES=$((TOTAL_BATCHES + batch_count))
+# Build wave batches array
+WAVE_BATCHES=()
+batch_num=1
+
+for wave in $(seq 1 $TOTAL_WAVES); do
+  wave_batch_list=""
+  
+  # Add batches to this wave
+  for i in $(seq 1 $BATCHES_PER_WAVE); do
+    if [[ $batch_num -le $TOTAL_BATCHES_INPUT ]]; then
+      wave_batch_list="$wave_batch_list $batch_num"
+      batch_num=$((batch_num + 1))
+    fi
+  done
+  
+  # Add to array (trim leading space)
+  WAVE_BATCHES+=("${wave_batch_list# }")
 done
+
+# Final count
+TOTAL_BATCHES=$TOTAL_BATCHES_INPUT
 
 # ========================================
 # SETUP
@@ -49,7 +59,15 @@ echo "========================================"
 echo "Start time: $(date)"
 echo "Total batches: $TOTAL_BATCHES"
 echo "Total waves: $TOTAL_WAVES"
-echo "Batches per wave: varies (see wave config)"
+echo "Batches per wave: $BATCHES_PER_WAVE"
+echo ""
+echo "Wave Configuration:"
+for i in $(seq 0 $((TOTAL_WAVES - 1))); do
+  wave_num=$((i + 1))
+  batches="${WAVE_BATCHES[$i]}"
+  batch_count=$(echo $batches | wc -w | tr -d ' ')
+  echo "  Wave $wave_num: Batches $batches ($batch_count batches)"
+done
 echo "========================================"
 echo ""
 
