@@ -21,7 +21,7 @@ S3_BUCKET="greendotball-bot-data"
 POOL_PREFIX="green_ball_image_16apr/"
 REGION="ap-south-1"
 PHONES_FILE="data/phones.txt"
-PHONES_PER_JOB=6
+PHONES_PER_JOB=9
 IMAGES_PER_JOB=20
 CAMPAIGN_NAME="${1:-pool-campaign}"
 
