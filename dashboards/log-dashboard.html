@@ -679,7 +679,7 @@ function searchPhone() {
             ${campEntries.map((e, i) => `<tr>
               <td style="color:#64748b;">${i+1}</td>
               <td>${e.success ? '<span class="badge-success">✅ OK</span>' : '<span class="badge-fail">❌ Fail</span>'}</td>
-              <td style="font-size:0.72rem;color:#64748b;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${e.image||''}">${(e.image||'–').split('/').pop().substring(0,30)}…</td>
+              <td style="width:110px;">${e.image ? `<a href="https://greendotball-bot-data.s3.ap-south-1.amazonaws.com/${e.image}" target="_blank" title="${e.image}"><img src="https://greendotball-bot-data.s3.ap-south-1.amazonaws.com/${e.image}" style="width:100px;height:100px;object-fit:cover;border-radius:6px;border:1px solid #334155;display:block;" onerror="this.style.display='none';this.nextSibling.style.display='inline'" /><span style="display:none;font-size:0.7rem;color:#38bdf8;">${e.image.split('/').pop().substring(0,25)}…</span></a>` : '–'}</td>
               <td style="font-size:0.75rem;color:${e.success?'#86efac':'#fca5a5'};max-width:260px;">${e.message||'–'}</td>
               <td style="font-size:0.72rem;color:#64748b;">${e.timestamp ? new Date(e.timestamp).toLocaleString() : '–'}</td>
             </tr>`).join('')}
