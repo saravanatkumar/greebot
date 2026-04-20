@@ -285,7 +285,7 @@ async function main() {
   console.log('Aggregating all local data...');
   const data = aggregateAll(allCampaigns);
 
-  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(data), 'utf-8');
 
   const phoneCount = Object.keys(data.byPhone).length;
   console.log('');
