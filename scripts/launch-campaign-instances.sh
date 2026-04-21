@@ -10,6 +10,11 @@
 #
 # Or pass as arguments:
 #   ./scripts/launch-campaign-instances.sh apr-04-2026-pool-120055 job-001,job-002,job-003
+#
+# To use SPOT instances (save up to 90% cost):
+#   export USE_SPOT=true (or USE_SPOT=y)
+#   export SPOT_MAX_PRICE=0.05  # Optional: max price per hour (default: $0.05)
+#   ./scripts/launch-campaign-instances.sh apr-04-2026-pool-120055 job-001,job-002
 
 set -e
 
@@ -23,6 +28,17 @@ IAM_ROLE="EC2-GreenDotBall-S3-Access"
 REGION="ap-south-1"
 S3_BUCKET="greendotball-bot-data"
 GIT_BRANCH="design-rethink"
+
+# Spot instance settings (set USE_SPOT=true or USE_SPOT=y to enable spot instances)
+USE_SPOT="${USE_SPOT:-false}"             # Default to on-demand instances
+SPOT_MAX_PRICE="${SPOT_MAX_PRICE:-0.05}"  # Max price per hour in USD (on-demand t3.small ~$0.0208/hr)
+
+# Normalize USE_SPOT to true/false
+if [[ "${USE_SPOT}" == "y" ]] || [[ "${USE_SPOT}" == "Y" ]] || [[ "${USE_SPOT}" == "yes" ]] || [[ "${USE_SPOT}" == "YES" ]]; then
+  USE_SPOT="true"
+elif [[ "${USE_SPOT}" != "true" ]]; then
+  USE_SPOT="false"
+fi
 
 # ── Read inputs ───────────────────────────────────────────────────────────────
 CAMPAIGN_ID="${1:-${CAMPAIGN_ID:-}}"
@@ -109,18 +125,34 @@ chmod 644 /etc/greendotball-env
 EOF
 )
 
-  RESULT=$(aws ec2 run-instances \
-    --region "$REGION" \
-    --image-id "$AMI_ID" \
-    --instance-type "$INSTANCE_TYPE" \
-    --key-name "$KEY_NAME" \
-    --security-group-ids "$SECURITY_GROUP_ID" \
-    --iam-instance-profile "Name=$IAM_ROLE" \
-    --instance-initiated-shutdown-behavior terminate \
-    --user-data "$USER_DATA" \
-    --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${INSTANCE_NAME}},{Key=CampaignId,Value=${CAMPAIGN_ID}},{Key=JobId,Value=${JOB_ID}},{Key=BatchNum,Value=${INST_NUM}},{Key=Project,Value=greendotball},{Key=LaunchedAt,Value=${LAUNCH_TIMESTAMP}}]" \
-    --count 1 \
-    --output json 2>&1)
+  if [ "$USE_SPOT" == "true" ]; then
+    RESULT=$(aws ec2 run-instances \
+      --region "$REGION" \
+      --image-id "$AMI_ID" \
+      --instance-type "$INSTANCE_TYPE" \
+      --key-name "$KEY_NAME" \
+      --security-group-ids "$SECURITY_GROUP_ID" \
+      --iam-instance-profile "Name=$IAM_ROLE" \
+      --instance-initiated-shutdown-behavior terminate \
+      --user-data "$USER_DATA" \
+      --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${INSTANCE_NAME}},{Key=CampaignId,Value=${CAMPAIGN_ID}},{Key=JobId,Value=${JOB_ID}},{Key=BatchNum,Value=${INST_NUM}},{Key=Project,Value=greendotball},{Key=LaunchedAt,Value=${LAUNCH_TIMESTAMP}}]" \
+      --instance-market-options "MarketType=spot,SpotOptions={MaxPrice=${SPOT_MAX_PRICE}}" \
+      --count 1 \
+      --output json 2>&1)
+  else
+    RESULT=$(aws ec2 run-instances \
+      --region "$REGION" \
+      --image-id "$AMI_ID" \
+      --instance-type "$INSTANCE_TYPE" \
+      --key-name "$KEY_NAME" \
+      --security-group-ids "$SECURITY_GROUP_ID" \
+      --iam-instance-profile "Name=$IAM_ROLE" \
+      --instance-initiated-shutdown-behavior terminate \
+      --user-data "$USER_DATA" \
+      --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${INSTANCE_NAME}},{Key=CampaignId,Value=${CAMPAIGN_ID}},{Key=JobId,Value=${JOB_ID}},{Key=BatchNum,Value=${INST_NUM}},{Key=Project,Value=greendotball},{Key=LaunchedAt,Value=${LAUNCH_TIMESTAMP}}]" \
+      --count 1 \
+      --output json 2>&1)
+  fi
 
   EXIT_CODE=$?
 
