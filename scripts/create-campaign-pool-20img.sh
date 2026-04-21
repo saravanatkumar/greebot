@@ -18,7 +18,7 @@
 set -e
 
 S3_BUCKET="greendotball-bot-data"
-POOL_PREFIX="green_ball_image_20_v1apr/"
+POOL_PREFIX="green_ball_image_21apr/"
 REGION="ap-south-1"
 PHONES_FILE="data/phones.txt"
 PHONES_PER_JOB=9
