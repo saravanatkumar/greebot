@@ -117,8 +117,6 @@ function aggregateAll(campaignIds) {
   const summary = { totalCampaigns: 0, totalSubmissions: 0, totalSucceeded: 0, totalFailed: 0 };
   const campaigns = [];
   const byDate = {};       // date → { succeeded, failed }
-  const failureReasons = {};  // message → count
-  const byPhone = {};      // phone → [{ campaignId, jobId, date, success, message, image, timestamp }]
 
   for (const campaignId of campaignIds) {
     const localBase = path.join(CAMPAIGNS_LOCAL, campaignId);
@@ -141,8 +139,6 @@ function aggregateAll(campaignIds) {
       total: 0,
       succeeded: 0,
       failed: 0,
-      jobs: [],
-      failureReasons: {},
     };
 
     if (!fs.existsSync(resultsDir)) {
@@ -158,52 +154,25 @@ function aggregateAll(campaignIds) {
       } catch (_) { continue; }
 
       const jobEntry = {
-        jobId: jobResult.jobId || file,
         total: jobResult.total || 0,
         succeeded: jobResult.succeeded || 0,
         failed: jobResult.failed || 0,
-        completedAt: jobResult.completedAt || null,
       };
-      campaign.jobs.push(jobEntry);
       campaign.total += jobEntry.total;
       campaign.succeeded += jobEntry.succeeded;
       campaign.failed += jobEntry.failed;
 
-      // Process individual results
+      // Process individual results for date stats only
       for (const r of (jobResult.results || [])) {
-        const phone = r.phone || 'unknown';
         const ts = r.timestamp || jobResult.completedAt || null;
         const entryDate = ts ? ts.split('T')[0] : date;
-
-        // by-phone index
-        if (!byPhone[phone]) byPhone[phone] = [];
-        byPhone[phone].push({
-          campaignId,
-          campaignDate: date,
-          jobId: jobResult.jobId || '',
-          pairId: r.pairId || '',
-          success: r.success,
-          message: r.message || '',
-          image: r.image || '',
-          timestamp: ts,
-        });
 
         // by-date stats
         if (!byDate[entryDate]) byDate[entryDate] = { succeeded: 0, failed: 0 };
         if (r.success) byDate[entryDate].succeeded++;
         else byDate[entryDate].failed++;
-
-        // failure reasons
-        if (!r.success && r.message) {
-          const reason = r.message.trim();
-          failureReasons[reason] = (failureReasons[reason] || 0) + 1;
-          campaign.failureReasons[reason] = (campaign.failureReasons[reason] || 0) + 1;
-        }
       }
     }
-
-    // Sort jobs by jobId
-    campaign.jobs.sort((a, b) => a.jobId.localeCompare(b.jobId));
 
     campaigns.push(campaign);
     summary.totalSubmissions += campaign.total;
@@ -221,18 +190,11 @@ function aggregateAll(campaignIds) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, stats]) => ({ date, ...stats }));
 
-  // Sort failure reasons by count desc
-  const sortedFailureReasons = Object.entries(failureReasons)
-    .sort(([, a], [, b]) => b - a)
-    .map(([reason, count]) => ({ reason, count }));
-
   return {
     generatedAt: new Date().toISOString(),
     summary,
     campaigns,
     dateStats,
-    failureReasons: sortedFailureReasons,
-    byPhone,
   };
 }
 
@@ -285,9 +247,8 @@ async function main() {
   console.log('Aggregating all local data...');
   const data = aggregateAll(allCampaigns);
 
-  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(data), 'utf-8');
-
-  const phoneCount = Object.keys(data.byPhone).length;
+  console.log('Writing aggregated data to file...');
+  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(data, null, 2), 'utf-8');
   console.log('');
   console.log('================================================');
   console.log('  ✅ SYNC COMPLETE');
@@ -296,8 +257,23 @@ async function main() {
   console.log(`  Submissions  : ${data.summary.totalSubmissions.toLocaleString()}`);
   console.log(`  Succeeded    : ${data.summary.totalSucceeded.toLocaleString()}`);
   console.log(`  Failed       : ${data.summary.totalFailed.toLocaleString()}`);
-  console.log(`  Unique phones: ${phoneCount.toLocaleString()}`);
   console.log(`  Output       : dashboards/data/dashboard-data.json`);
+  console.log('');
+
+  // Upload to S3
+  console.log('Uploading to S3...');
+  try {
+    await s3.putObject({
+      Bucket: S3_BUCKET,
+      Key: 'dashboard-data.json',
+      Body: fs.readFileSync(OUTPUT_FILE),
+      ContentType: 'application/json',
+    }).promise();
+    console.log(`✅ Uploaded to s3://${S3_BUCKET}/dashboard-data.json`);
+  } catch (err) {
+    console.log(`❌ S3 upload failed: ${err.message}`);
+  }
+
   console.log('');
   console.log('  To view dashboard:');
   console.log('    npx serve dashboards');
