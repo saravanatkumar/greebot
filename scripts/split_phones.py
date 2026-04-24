@@ -5,8 +5,8 @@ Usage: python3 split_phones.py
 """
 
 MASTER_FILE = "data/masterPhone..txt"
-BATCH_SIZE = 288
-NUM_BATCHES = 25
+BATCH_SIZE = 255
+NUM_BATCHES = 20
 
 def split_phones():
     # Read all phone numbers
