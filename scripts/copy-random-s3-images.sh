@@ -9,11 +9,10 @@
 # Example:
 #   ./scripts/copy-random-s3-images.sh green_ball_image_20_v1apr green_ball_image_28apr 4000
 
-set -e
-
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
 S3_BUCKET="greendotball-bot-data"
 REGION="ap-south-1"
+PARALLEL=10
 # ───────────────────────────────────────────────────────────────────────────────
 
 # ─── ARGUMENTS ─────────────────────────────────────────────────────────────────
@@ -24,10 +23,11 @@ COUNT="${3:-4000}"
 
 echo ""
 echo "=================================================="
-echo "  COPY RANDOM S3 IMAGES"
+echo "  COPY RANDOM S3 IMAGES (PARALLEL)"
 echo "  Source  : s3://${S3_BUCKET}/${SRC_PREFIX}/"
 echo "  Dest    : s3://${S3_BUCKET}/${DEST_PREFIX}/"
 echo "  Count   : ${COUNT} images"
+echo "  Workers : ${PARALLEL} parallel"
 echo "  Region  : ${REGION}"
 echo "=================================================="
 echo ""
@@ -88,40 +88,30 @@ echo "✅ Selected $COUNT images"
 echo ""
 # ───────────────────────────────────────────────────────────────────────────────
 
-# ─── COPY IMAGES ───────────────────────────────────────────────────────────────
+# ─── COPY IMAGES (PARALLEL) ───────────────────────────────────────────────────
 echo "──────────────────────────────────────────────────"
-echo "  Copying images to destination..."
+echo "  Copying $COUNT images with $PARALLEL parallel workers..."
 echo "──────────────────────────────────────────────────"
 
-COPIED=0
-FAILED=0
-SKIPPED=0
-
-while IFS= read -r src_key; do
-  # Extract just the filename
-  FILENAME=$(basename "$src_key")
-  
-  # Build S3 paths
-  SRC_PATH="s3://${S3_BUCKET}/${src_key}"
-  DEST_PATH="s3://${S3_BUCKET}/${DEST_PREFIX}/${FILENAME}"
-  
-  # Check if destination already exists
-  if aws s3 ls "$DEST_PATH" --region "$REGION" &>/dev/null; then
-    SKIPPED=$((SKIPPED + 1))
-    echo "  ⏭️  [$((COPIED + SKIPPED + FAILED))/$COUNT] $FILENAME (already exists)"
-    continue
-  fi
-  
-  # Copy image
-  if aws s3 cp "$SRC_PATH" "$DEST_PATH" --region "$REGION" --quiet; then
-    COPIED=$((COPIED + 1))
-    echo "  ✅ [$((COPIED + SKIPPED + FAILED))/$COUNT] $FILENAME"
+copy_one() {
+  local src_key="$1"
+  local bucket="$2"
+  local dest_prefix="$3"
+  local region="$4"
+  local filename
+  filename=$(basename "$src_key")
+  if aws s3 cp "s3://${bucket}/${src_key}" "s3://${bucket}/${dest_prefix}/${filename}" \
+      --region "$region" --quiet 2>/dev/null; then
+    echo "  ✅ $filename"
   else
-    FAILED=$((FAILED + 1))
-    echo "  ❌ FAILED: $FILENAME"
+    echo "  ❌ FAILED: $filename" >&2
   fi
-  
-done < "$RANDOM_LIST"
+}
+export -f copy_one
+
+xargs -P "$PARALLEL" -I {} \
+  bash -c 'copy_one "$@"' _ {} "$S3_BUCKET" "$DEST_PREFIX" "$REGION" \
+  < "$RANDOM_LIST"
 # ───────────────────────────────────────────────────────────────────────────────
 
 # ─── CLEANUP ───────────────────────────────────────────────────────────────────
@@ -132,17 +122,9 @@ rm -f "$TEMP_LIST" "$RANDOM_LIST"
 echo ""
 echo "=================================================="
 echo "  ✅ DONE"
-echo "  Copied   : $COPIED images"
-if [ "$SKIPPED" -gt 0 ]; then
-  echo "  Skipped  : $SKIPPED images (already existed)"
-fi
-if [ "$FAILED" -gt 0 ]; then
-  echo "  ❌ Failed: $FAILED images"
-fi
-echo "  Dest     : s3://${S3_BUCKET}/${DEST_PREFIX}/"
+FINAL_COUNT=$(aws s3 ls "s3://${S3_BUCKET}/${DEST_PREFIX}/" --recursive --region "$REGION" | wc -l | tr -d ' ')
+echo "  Total in dest : $FINAL_COUNT images"
+echo "  Dest          : s3://${S3_BUCKET}/${DEST_PREFIX}/"
 echo "=================================================="
-echo ""
-echo "  Verify destination count:"
-echo "    aws s3 ls s3://${S3_BUCKET}/${DEST_PREFIX}/ --recursive | wc -l"
 echo ""
 # ───────────────────────────────────────────────────────────────────────────────
