@@ -27,18 +27,19 @@ class ImageResizer:
     
     def generate_random_filename(self, original_filename, percentage):
         """Generate random filename with prefix and suffix"""
-        # Get original file extension
+        # Get original file extension and name
         original_path = Path(original_filename)
         extension = original_path.suffix.lower()
+        original_name = original_path.stem
         
-        # Generate random string
-        random_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+        # Generate random string for prefix
+        random_prefix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
         
-        # Create timestamp
+        # Create timestamp for suffix
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # Create new filename: prefix_random_timestamp_percentage_suffix.extension
-        new_filename = f"img_{random_str}_{timestamp}_{int(percentage*100)}_resized{extension}"
+        # Create new filename: prefix_originalname_timestamp_percentage.extension
+        new_filename = f"img_{random_prefix}_{original_name}_{timestamp}_{int(percentage*100)}{extension}"
         
         return new_filename
     
