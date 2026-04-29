@@ -15,7 +15,7 @@
 #   - Requires AWS CLI configured with appropriate IAM permissions
 #   - S3 bucket is fixed to greendotball-bot-data (change S3_BUCKET below if needed)
 
-set -e
+set -euo pipefail
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
 S3_BUCKET="greendotball-bot-data"
@@ -28,6 +28,7 @@ RESIZER_SCRIPT="$SCRIPT_DIR/image_resizer.py"
 SRC_DIR="${1}"
 DEST_DIR="${2}"
 S3_PREFIX="${3:-images-resized}"
+WORKERS="${4:-15}"
 # ───────────────────────────────────────────────────────────────────────────────
 
 echo ""
@@ -36,6 +37,7 @@ echo "  RESIZE + S3 UPLOAD"
 echo "  Source  : $SRC_DIR"
 echo "  Dest    : $DEST_DIR"
 echo "  S3      : s3://${S3_BUCKET}/${S3_PREFIX}/"
+echo "  Workers : $WORKERS parallel uploads"
 echo "  Region  : $REGION"
 echo "=================================================="
 echo ""
@@ -123,20 +125,30 @@ fi
 echo "Found $TOTAL resized images to upload..."
 echo ""
 
-COUNT=0
-FAILED=0
-while IFS= read -r -d '' img; do
-  FILENAME=$(basename "$img")
-  S3_PATH="s3://${S3_BUCKET}/${S3_PREFIX}/${FILENAME}"
+_TRACK_DIR=$(mktemp -d)
 
-  if aws s3 cp "$img" "$S3_PATH" --region "$REGION" --quiet; then
-    COUNT=$((COUNT + 1))
-    echo "  ✅ [$COUNT/$TOTAL] $FILENAME"
+_upload_one() {
+  local img="$1"
+  local FILENAME
+  FILENAME=$(basename "$img")
+  local S3_PATH="s3://${S3_BUCKET}/${S3_PREFIX}/${FILENAME}"
+  if aws s3 cp "$img" "$S3_PATH" --region "$REGION" --quiet 2>/dev/null; then
+    touch "${_TRACK_DIR}/ok_${FILENAME}"
+    echo "  ✅ $FILENAME"
   else
-    FAILED=$((FAILED + 1))
+    touch "${_TRACK_DIR}/fail_${FILENAME}"
     echo "  ❌ FAILED: $FILENAME"
   fi
-done < <(find "$DEST_DIR" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.webp' -o -iname '*.bmp' -o -iname '*.tiff' -o -iname '*.webp' \) -print0 2>/dev/null)
+}
+export -f _upload_one
+export S3_BUCKET S3_PREFIX REGION _TRACK_DIR
+
+find "$DEST_DIR" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.webp' -o -iname '*.bmp' -o -iname '*.tiff' \) -print0 2>/dev/null \
+  | xargs -0 -P "$WORKERS" -I{} bash -c '_upload_one "$@"' _ {}
+
+COUNT=$(find "$_TRACK_DIR" -name 'ok_*' 2>/dev/null | wc -l | tr -d ' ')
+FAILED=$(find "$_TRACK_DIR" -name 'fail_*' 2>/dev/null | wc -l | tr -d ' ')
+rm -rf "$_TRACK_DIR"
 # ───────────────────────────────────────────────────────────────────────────────
 
 # ─── SUMMARY ───────────────────────────────────────────────────────────────────
